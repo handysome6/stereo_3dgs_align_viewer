@@ -1,0 +1,22 @@
+{
+  "name": "3dgs-spark-camera-viewer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "build:data": "uv run --with numpy python scripts/build_afternoon_dataset.py",
+    "check:data": "node scripts/check_manifest.mjs",
+    "test": "npm run check:data && npm run build"
+  },
+  "dependencies": {
+    "@sparkjsdev/spark": "^2.1.0",
+    "lucide": "^0.468.0",
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "vite": "^6.3.0"
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.venv/
+.DS_Store
+.vite/
+*.log
+
+/public/data/afternoon/**
+!/public/data/afternoon/
+!/public/data/afternoon/.gitkeep
+!/public/data/afternoon/manifest.json
