@@ -81,30 +81,57 @@ export class OcclusionProxy {
   }
 
   isRayOccluded(origin, target, radius = 0.015, nearPadding = 0.08, targetPadding = 0.08) {
-    if (!this.points) return false;
-    const dx = target.x - origin.x;
-    const dy = target.y - origin.y;
-    const dz = target.z - origin.z;
-    const length = Math.hypot(dx, dy, dz);
-    if (length <= nearPadding + targetPadding) return false;
+    return this.countOccludedRays(origin, [target], radius, nearPadding, targetPadding, 1) > 0;
+  }
 
-    const dirX = dx / length;
-    const dirY = dy / length;
-    const dirZ = dz / length;
-    const radiusSq = radius * radius;
-    const maxAlong = length - targetPadding;
+  countOccludedRays(origin, targets, radius = 0.015, nearPadding = 0.08, targetPadding = 0.08, stopAfter = targets.length) {
+    if (!this.points || !targets.length) return 0;
 
-    for (let index = 0; index < this.points.length; index += 3) {
-      const vx = this.points[index] - origin.x;
-      const vy = this.points[index + 1] - origin.y;
-      const vz = this.points[index + 2] - origin.z;
-      const along = vx * dirX + vy * dirY + vz * dirZ;
-      if (along <= nearPadding || along >= maxAlong) continue;
+    const rays = [];
+    for (const target of targets) {
+      const dx = target.x - origin.x;
+      const dy = target.y - origin.y;
+      const dz = target.z - origin.z;
+      const length = Math.hypot(dx, dy, dz);
+      if (length <= nearPadding + targetPadding) continue;
 
-      const distanceSq = vx * vx + vy * vy + vz * vz - along * along;
-      if (distanceSq < radiusSq) return true;
+      rays.push({
+        dirX: dx / length,
+        dirY: dy / length,
+        dirZ: dz / length,
+        maxAlong: length - targetPadding,
+        hit: false,
+      });
     }
 
-    return false;
+    if (!rays.length) return 0;
+
+    const radiusSq = radius * radius;
+    let hitCount = 0;
+
+    for (let index = 0; index < this.points.length; index += 3) {
+      const px = this.points[index];
+      const py = this.points[index + 1];
+      const pz = this.points[index + 2];
+      const vx = px - origin.x;
+      const vy = py - origin.y;
+      const vz = pz - origin.z;
+
+      for (const ray of rays) {
+        if (ray.hit) continue;
+
+        const along = vx * ray.dirX + vy * ray.dirY + vz * ray.dirZ;
+        if (along <= nearPadding || along >= ray.maxAlong) continue;
+
+        const distanceSq = vx * vx + vy * vy + vz * vz - along * along;
+        if (distanceSq >= radiusSq) continue;
+
+        ray.hit = true;
+        hitCount += 1;
+        if (hitCount >= stopAfter) return hitCount;
+      }
+    }
+
+    return hitCount;
   }
 }

@@ -17,9 +17,13 @@ const GROUND_PLANE_NORMAL = new THREE.Vector3(0.00492588, -0.823496, 0.5673).nor
 const FPS_MOVE_SPEED = 3.0;
 const CAMERA_FRUSTUM_SCALE = 0.5;
 const CAMERA_FRUSTUM_LINE_WIDTH = 2;
-const CAMERA_OCCLUSION_RADIUS = 8;
-const CAMERA_OCCLUDED_CORNER_THRESHOLD = 2;
-const CAMERA_RAY_OCCLUSION_RADIUS = 0.015;
+const CAMERA_OCCLUSION_RADIUS = 12;
+const CAMERA_OCCLUDED_SAMPLE_THRESHOLD = 2;
+const CAMERA_RAY_OCCLUSION_RADIUS = 0.04;
+const CAMERA_RAY_OCCLUDED_SAMPLE_THRESHOLD = 1;
+const CAMERA_MARKER_OCCLUSION_SHELL_RADIUS = 0.08;
+const CAMERA_RAY_NEAR_PADDING = 0.08;
+const CAMERA_RAY_TARGET_PADDING = 0.08;
 
 const app = document.querySelector("#app");
 app.innerHTML = `
@@ -152,6 +156,9 @@ const splatOcclusionRaycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const rayDirection = new THREE.Vector3();
 const lineResolution = new THREE.Vector2();
+const markerShellDirection = new THREE.Vector3();
+const markerShellRight = new THREE.Vector3();
+const markerShellUp = new THREE.Vector3();
 
 let manifest = null;
 let splatMesh = null;
@@ -464,6 +471,39 @@ function scaledFramePoints(frame) {
   });
 }
 
+function midpoint(a, b) {
+  return new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+}
+
+function averagePoints(points) {
+  const average = new THREE.Vector3();
+  for (const point of points) average.add(point);
+  return average.multiplyScalar(1 / points.length);
+}
+
+function createFrameOcclusionSamples(frame) {
+  const [origin, topLeft, topRight, bottomRight, bottomLeft] = scaledFramePoints(frame);
+  const frameCenter = averagePoints([topLeft, topRight, bottomRight, bottomLeft]);
+
+  return [
+    origin,
+    frameCenter,
+    topLeft,
+    topRight,
+    bottomRight,
+    bottomLeft,
+    midpoint(origin, frameCenter),
+    midpoint(origin, topLeft),
+    midpoint(origin, topRight),
+    midpoint(origin, bottomRight),
+    midpoint(origin, bottomLeft),
+    midpoint(topLeft, topRight),
+    midpoint(topRight, bottomRight),
+    midpoint(bottomRight, bottomLeft),
+    midpoint(bottomLeft, topLeft),
+  ];
+}
+
 function updateLineMaterialResolution() {
   splatRenderer.getDrawingBufferSize(lineResolution);
   for (const material of [materials.line, materials.lineHover, materials.lineActive]) {
@@ -495,7 +535,7 @@ function createFrameObject(frame) {
   group.add(pick);
 
   frameRoot.add(group);
-  frameObjects.set(frame.id, { frame, group, line, marker, pick, occluded: false, occlusionSamples: scaledFramePoints(frame) });
+  frameObjects.set(frame.id, { frame, group, line, marker, pick, occluded: false, occlusionSamples: createFrameOcclusionSamples(frame) });
 }
 
 function refreshFrameVisuals() {
@@ -764,9 +804,15 @@ function pickFrame(event) {
 }
 
 function pickFrameFromPointer() {
+  if (!state.camerasVisible) return null;
   raycaster.setFromCamera(pointer, splatCamera);
   const intersects = raycaster.intersectObjects(pickTargets, false);
-  return intersects[0]?.object.userData.frame ?? null;
+  for (const intersect of intersects) {
+    const frame = intersect.object.userData.frame;
+    const frameObject = frameObjects.get(frame.id);
+    if (frameObject && !frameObject.occluded && frameObject.group.visible) return frame;
+  }
+  return null;
 }
 
 function openFrameFromSplat(frame) {
@@ -781,6 +827,9 @@ function openFrameFromSplat(frame) {
 
 function isFrameBlockedBySplat(frame) {
   if (!state.occlusionEnabled || !splatMesh) return false;
+  const frameObject = frameObjects.get(frame.id);
+  if (frameObject?.occluded || (frameObject && isFrameProxyOccluded(frameObject))) return true;
+
   const target = framePosition(frame);
   const distance = splatCamera.position.distanceTo(target);
   if (distance < 0.08) return false;
@@ -793,19 +842,56 @@ function isFrameBlockedBySplat(frame) {
   return hits.length > 0;
 }
 
+function markerOcclusionTargets(frameOrigin) {
+  markerShellDirection.copy(frameOrigin).sub(splatCamera.position);
+  const distance = markerShellDirection.length();
+  if (distance < 1e-5) return [frameOrigin];
+
+  markerShellDirection.multiplyScalar(1 / distance);
+  markerShellRight.crossVectors(markerShellDirection, splatCamera.up);
+  if (markerShellRight.lengthSq() < 1e-6) {
+    markerShellRight.setFromMatrixColumn(splatCamera.matrixWorld, 0);
+  }
+  markerShellRight.normalize();
+  markerShellUp.crossVectors(markerShellRight, markerShellDirection).normalize();
+
+  const radius = Math.min(0.16, Math.max(CAMERA_MARKER_OCCLUSION_SHELL_RADIUS, distance * 0.006));
+  return [
+    frameOrigin,
+    frameOrigin.clone().addScaledVector(markerShellRight, radius),
+    frameOrigin.clone().addScaledVector(markerShellRight, -radius),
+    frameOrigin.clone().addScaledVector(markerShellUp, radius),
+    frameOrigin.clone().addScaledVector(markerShellUp, -radius),
+  ];
+}
+
 function isFrameProxyOccluded(frameObject) {
   if (!occlusionProxy.count) return false;
-  if (occlusionProxy.isRayOccluded(splatCamera.position, frameObject.occlusionSamples[0], CAMERA_RAY_OCCLUSION_RADIUS)) {
+  if (occlusionProxy.isOccluded(frameObject.occlusionSamples[0], splatCamera, CAMERA_OCCLUSION_RADIUS)) {
     return true;
   }
 
-  let cornerOcclusionCount = 0;
-  for (let index = 0; index < frameObject.occlusionSamples.length; index += 1) {
+  let sampleOcclusionCount = 0;
+  for (let index = 1; index < frameObject.occlusionSamples.length; index += 1) {
     const occluded = occlusionProxy.isOccluded(frameObject.occlusionSamples[index], splatCamera, CAMERA_OCCLUSION_RADIUS);
-    if (index === 0 && occluded) return true;
-    if (index > 0 && occluded) cornerOcclusionCount += 1;
+    if (!occluded) continue;
+    sampleOcclusionCount += 1;
+    if (sampleOcclusionCount >= CAMERA_OCCLUDED_SAMPLE_THRESHOLD) return true;
   }
-  return cornerOcclusionCount >= CAMERA_OCCLUDED_CORNER_THRESHOLD;
+
+  const rayHits = occlusionProxy.countOccludedRays(
+    splatCamera.position,
+    markerOcclusionTargets(frameObject.occlusionSamples[0]),
+    CAMERA_RAY_OCCLUSION_RADIUS,
+    CAMERA_RAY_NEAR_PADDING,
+    CAMERA_RAY_TARGET_PADDING,
+    CAMERA_RAY_OCCLUDED_SAMPLE_THRESHOLD,
+  );
+  if (rayHits >= CAMERA_RAY_OCCLUDED_SAMPLE_THRESHOLD) {
+    return true;
+  }
+
+  return false;
 }
 
 function handleSplatPointerMove(event) {
@@ -842,6 +928,7 @@ function updateOcclusion(now) {
     for (const frameObject of frameObjects.values()) {
       frameObject.occluded = false;
       frameObject.group.visible = true;
+      frameObject.pick.visible = true;
     }
     updateFrameRows();
     return;
@@ -855,6 +942,7 @@ function updateOcclusion(now) {
     const occluded = isFrameProxyOccluded(frameObject);
     frameObject.occluded = occluded;
     frameObject.group.visible = !occluded;
+    frameObject.pick.visible = !occluded;
     if (!occluded) visibleFrameCount += 1;
   }
   updateFrameRows();
@@ -969,6 +1057,13 @@ window.afternoonViewer = {
       movementSpeed: FPS_MOVE_SPEED,
       frustumScale: CAMERA_FRUSTUM_SCALE,
       frustumLineWidth: CAMERA_FRUSTUM_LINE_WIDTH,
+      occlusionPolicy: {
+        depthRadius: CAMERA_OCCLUSION_RADIUS,
+        depthSampleThreshold: CAMERA_OCCLUDED_SAMPLE_THRESHOLD,
+        rayRadius: CAMERA_RAY_OCCLUSION_RADIUS,
+        raySampleThreshold: CAMERA_RAY_OCCLUDED_SAMPLE_THRESHOLD,
+        markerShellRadius: CAMERA_MARKER_OCCLUSION_SHELL_RADIUS,
+      },
       visibleFrameCount,
       cloudCameraPosition: cloudCamera.position.toArray(),
       cloudStatus: cloudStatus.textContent,
