@@ -12,11 +12,27 @@ const FRAME_LAYER = 1;
 
 const app = document.querySelector("#app");
 app.innerHTML = `
-  <main class="app-shell">
-    <section class="cloud-stage" aria-label="Stereo point cloud view">
+  <main id="appShell" class="app-shell splat-primary">
+    <section class="splat-stage" aria-label="3DGS maneuver view">
+      <canvas id="splatCanvas" class="scene-canvas" tabindex="0"></canvas>
+      <div class="toolbar splat-toolbar" aria-label="Splat navigation tools">
+        <button id="fitSplat" class="icon-button" type="button" title="Fit splat view"><i data-lucide="maximize-2"></i></button>
+        <button class="icon-button swap-viewports" type="button" title="Swap render areas"><i data-lucide="replace"></i></button>
+        <button id="toggleSplat" class="icon-button active" type="button" title="Toggle Gaussian splat"><i data-lucide="sparkles"></i></button>
+        <button id="toggleCameras" class="icon-button active" type="button" title="Toggle camera icons"><i data-lucide="camera"></i></button>
+        <button id="toggleOcclusion" class="icon-button active" type="button" title="Toggle marker occlusion"><i data-lucide="eye"></i></button>
+        <button id="toggleFrustumSplat" class="icon-button" type="button" title="Toggle decorative frustum splat"><i data-lucide="aperture"></i></button>
+      </div>
+      <div class="viewport-label">3DGS Splat Area</div>
+      <div id="splatStatus" class="mini-status">Loading 3DGS</div>
+    </section>
+
+    <aside id="rightRail" class="right-rail">
+      <section class="cloud-stage" aria-label="Stereo point cloud view">
       <canvas id="cloudCanvas" class="scene-canvas"></canvas>
       <div class="toolbar cloud-toolbar" aria-label="Stereo point cloud tools">
         <button id="fitCloud" class="icon-button" type="button" title="Fit selected point cloud"><i data-lucide="maximize-2"></i></button>
+        <button class="icon-button swap-viewports" type="button" title="Swap render areas"><i data-lucide="replace"></i></button>
         <button id="viewFromCamera" class="icon-button active" type="button" title="View from selected stereo camera"><i data-lucide="video"></i></button>
         <button id="toggleCloud" class="icon-button active" type="button" title="Toggle selected point cloud"><i data-lucide="cloud"></i></button>
       </div>
@@ -29,20 +45,6 @@ app.innerHTML = `
         </div>
       </div>
     </section>
-
-    <aside class="right-rail">
-      <section class="splat-stage" aria-label="3DGS maneuver view">
-        <canvas id="splatCanvas" class="scene-canvas"></canvas>
-        <div class="toolbar splat-toolbar" aria-label="Splat navigation tools">
-          <button id="fitSplat" class="icon-button" type="button" title="Fit splat view"><i data-lucide="maximize-2"></i></button>
-          <button id="toggleSplat" class="icon-button active" type="button" title="Toggle Gaussian splat"><i data-lucide="sparkles"></i></button>
-          <button id="toggleCameras" class="icon-button active" type="button" title="Toggle camera icons"><i data-lucide="camera"></i></button>
-          <button id="toggleOcclusion" class="icon-button active" type="button" title="Toggle marker occlusion"><i data-lucide="eye"></i></button>
-          <button id="toggleFrustumSplat" class="icon-button" type="button" title="Toggle decorative frustum splat"><i data-lucide="aperture"></i></button>
-        </div>
-        <div class="viewport-label">3DGS Splat Area</div>
-        <div id="splatStatus" class="mini-status">Loading 3DGS</div>
-      </section>
 
       <section class="side-panel" aria-label="Registered stereo cameras">
         <div class="panel-head">
@@ -66,8 +68,13 @@ app.innerHTML = `
 `;
 createIcons({ icons });
 
+const appShell = document.querySelector("#appShell");
+const rightRail = document.querySelector("#rightRail");
 const cloudCanvas = document.querySelector("#cloudCanvas");
 const splatCanvas = document.querySelector("#splatCanvas");
+const cloudStage = document.querySelector(".cloud-stage");
+const splatStage = document.querySelector(".splat-stage");
+const sidePanel = document.querySelector(".side-panel");
 const cloudStatus = document.querySelector("#cloudStatus");
 const splatStatus = document.querySelector("#splatStatus");
 const cloudMetric = document.querySelector("#cloudMetric");
@@ -85,6 +92,7 @@ const toggleSplatButton = document.querySelector("#toggleSplat");
 const toggleCamerasButton = document.querySelector("#toggleCameras");
 const toggleOcclusionButton = document.querySelector("#toggleOcclusion");
 const toggleFrustumSplatButton = document.querySelector("#toggleFrustumSplat");
+const swapViewportButtons = document.querySelectorAll(".swap-viewports");
 
 const cloudRenderer = createRenderer(cloudCanvas, 0x121417);
 const splatRenderer = createRenderer(splatCanvas, 0x111315);
@@ -107,10 +115,7 @@ cloudControls.enableDamping = true;
 cloudControls.dampingFactor = 0.08;
 cloudControls.screenSpacePanning = true;
 
-const splatControls = new OrbitControls(splatCamera, splatRenderer.domElement);
-splatControls.enableDamping = true;
-splatControls.dampingFactor = 0.08;
-splatControls.screenSpacePanning = true;
+const splatFpvControls = createFpvControls(splatCamera, splatRenderer.domElement);
 
 const spark = new SparkRenderer({
   renderer: splatRenderer,
@@ -144,6 +149,7 @@ let activeFrame = null;
 let hoveredFrame = null;
 let cloudLoadToken = 0;
 let lastOcclusionUpdate = 0;
+let lastAnimationTime = 0;
 let visibleFrameCount = 0;
 
 const frameObjects = new Map();
@@ -152,6 +158,7 @@ const pickTargets = [];
 const materials = createMaterials();
 
 const state = {
+  primaryViewport: "splat",
   splatVisible: true,
   cloudVisible: true,
   camerasVisible: true,
@@ -159,6 +166,135 @@ const state = {
   frustumSplatVisible: false,
   stereoViewFromCamera: true,
 };
+
+function createFpvControls(camera, domElement) {
+  const up = new THREE.Vector3(0, 0, 1);
+  const direction = new THREE.Vector3();
+  const flatForward = new THREE.Vector3();
+  const right = new THREE.Vector3();
+  const move = new THREE.Vector3();
+  const keys = new Set();
+  const target = new THREE.Vector3();
+  const drag = {
+    active: false,
+    moved: false,
+    pointerId: null,
+    lastX: 0,
+    lastY: 0,
+  };
+
+  const controls = {
+    target,
+    mouseSensitivity: 0.0022,
+    moveSpeed: 2.4,
+    boostMultiplier: 3.2,
+    slowMultiplier: 0.35,
+    yaw: 0,
+    pitch: 0,
+    syncFromCamera,
+    update,
+    beginDrag,
+    moveDrag,
+    endDrag,
+    keyDown,
+    keyUp,
+    keys,
+  };
+
+  function syncFromCamera() {
+    camera.getWorldDirection(direction);
+    controls.pitch = Math.asin(THREE.MathUtils.clamp(direction.dot(up), -0.995, 0.995));
+    controls.yaw = Math.atan2(direction.x, direction.y);
+    target.copy(camera.position).add(direction);
+  }
+
+  function applyLook() {
+    const cp = Math.cos(controls.pitch);
+    direction.set(Math.sin(controls.yaw) * cp, Math.cos(controls.yaw) * cp, Math.sin(controls.pitch)).normalize();
+    target.copy(camera.position).add(direction);
+    camera.up.copy(up);
+    camera.lookAt(target);
+  }
+
+  function movementVector() {
+    camera.getWorldDirection(flatForward);
+    flatForward.addScaledVector(up, -flatForward.dot(up));
+    if (flatForward.lengthSq() < 1e-6) {
+      flatForward.set(Math.sin(controls.yaw), Math.cos(controls.yaw), 0);
+    }
+    flatForward.normalize();
+    right.copy(flatForward).cross(up).normalize();
+    move.set(0, 0, 0);
+    if (keys.has("KeyW") || keys.has("ArrowUp")) move.add(flatForward);
+    if (keys.has("KeyS") || keys.has("ArrowDown")) move.sub(flatForward);
+    if (keys.has("KeyD") || keys.has("ArrowRight")) move.add(right);
+    if (keys.has("KeyA") || keys.has("ArrowLeft")) move.sub(right);
+    if (keys.has("KeyE") || keys.has("Space")) move.add(up);
+    if (keys.has("KeyQ") || keys.has("ControlLeft") || keys.has("ControlRight")) move.sub(up);
+    return move;
+  }
+
+  function update(deltaSeconds) {
+    if (typeof deltaSeconds !== "number") {
+      camera.up.copy(up);
+      camera.lookAt(target);
+      syncFromCamera();
+      return;
+    }
+    const vector = movementVector();
+    if (vector.lengthSq() > 0) {
+      vector.normalize();
+      const boost = keys.has("ShiftLeft") || keys.has("ShiftRight") ? controls.boostMultiplier : 1;
+      const slow = keys.has("AltLeft") || keys.has("AltRight") ? controls.slowMultiplier : 1;
+      camera.position.addScaledVector(vector, controls.moveSpeed * boost * slow * deltaSeconds);
+    }
+    applyLook();
+  }
+
+  function beginDrag(event) {
+    domElement.focus();
+    drag.active = true;
+    drag.moved = false;
+    drag.pointerId = event.pointerId;
+    drag.lastX = event.clientX;
+    drag.lastY = event.clientY;
+    domElement.setPointerCapture?.(event.pointerId);
+  }
+
+  function moveDrag(event) {
+    if (!drag.active || event.pointerId !== drag.pointerId) return false;
+    const dx = event.clientX - drag.lastX;
+    const dy = event.clientY - drag.lastY;
+    drag.lastX = event.clientX;
+    drag.lastY = event.clientY;
+    if (Math.abs(dx) + Math.abs(dy) > 1) drag.moved = true;
+    controls.yaw -= dx * controls.mouseSensitivity;
+    controls.pitch = THREE.MathUtils.clamp(controls.pitch - dy * controls.mouseSensitivity, -1.42, 1.42);
+    applyLook();
+    return true;
+  }
+
+  function endDrag(event) {
+    const wasClick = !drag.moved;
+    if (drag.pointerId !== null) domElement.releasePointerCapture?.(drag.pointerId);
+    drag.active = false;
+    drag.pointerId = null;
+    drag.moved = false;
+    return wasClick;
+  }
+
+  function keyDown(event) {
+    if (event.repeat) return;
+    keys.add(event.code);
+  }
+
+  function keyUp(event) {
+    keys.delete(event.code);
+  }
+
+  syncFromCamera();
+  return controls;
+}
 
 function createRenderer(canvas, clearColor) {
   const renderer = new THREE.WebGLRenderer({
@@ -359,6 +495,24 @@ function applyVisibility() {
   viewFromCameraButton.classList.toggle("active", state.stereoViewFromCamera);
 }
 
+function setPrimaryViewport(primaryViewport) {
+  state.primaryViewport = primaryViewport;
+  appShell.classList.toggle("splat-primary", primaryViewport === "splat");
+  appShell.classList.toggle("cloud-primary", primaryViewport === "cloud");
+  if (primaryViewport === "splat") {
+    appShell.insertBefore(splatStage, rightRail);
+    rightRail.insertBefore(cloudStage, sidePanel);
+  } else {
+    appShell.insertBefore(cloudStage, rightRail);
+    rightRail.insertBefore(splatStage, sidePanel);
+  }
+  requestAnimationFrame(resizeRenderers);
+}
+
+function togglePrimaryViewport() {
+  setPrimaryViewport(state.primaryViewport === "splat" ? "cloud" : "splat");
+}
+
 async function loadManifest() {
   const response = await fetch(MANIFEST_URL);
   if (!response.ok) throw new Error(`Failed to load manifest: ${response.status}`);
@@ -415,7 +569,7 @@ function loadPointCloud(frame) {
       cloudScene.add(activeCloud);
 
       if (state.stereoViewFromCamera) {
-        setCameraToFrame(cloudCamera, cloudControls, frame);
+        setCameraToFrame(cloudCamera, cloudControls, frame, cloudSceneBox);
       } else {
         fitCloud();
       }
@@ -448,8 +602,8 @@ function disposeActiveCloud() {
 function selectFrame(frame, { moveSplatCamera = false } = {}) {
   activeFrame = frame;
   if (moveSplatCamera) {
-    splatControls.target.copy(framePosition(frame));
-    splatControls.update();
+    splatFpvControls.target.copy(framePosition(frame));
+    splatFpvControls.update();
   }
   loadPointCloud(frame);
   updateSelectedPanel(frame);
@@ -460,7 +614,7 @@ function selectFrame(frame, { moveSplatCamera = false } = {}) {
 }
 
 function fitSplat() {
-  fitCameraToBox(splatCamera, splatControls, splatSceneBox);
+  fitCameraToBox(splatCamera, splatFpvControls, splatSceneBox);
 }
 
 function fitCloud() {
@@ -476,7 +630,7 @@ function viewStereoFromSelectedCamera() {
     setCloudStatus("No selected camera yet");
     return;
   }
-  setCameraToFrame(cloudCamera, cloudControls, activeFrame);
+  setCameraToFrame(cloudCamera, cloudControls, activeFrame, cloudSceneBox);
 }
 
 function setPointerFromEvent(event) {
@@ -507,6 +661,12 @@ function isFrameBlockedBySplat(frame) {
 }
 
 function handleSplatPointerMove(event) {
+  if (splatFpvControls.moveDrag(event)) {
+    hoveredFrame = null;
+    refreshFrameVisuals();
+    splatRenderer.domElement.style.cursor = "grabbing";
+    return;
+  }
   const nextHover = pickFrame(event);
   if (nextHover?.id !== hoveredFrame?.id) {
     hoveredFrame = nextHover;
@@ -515,12 +675,15 @@ function handleSplatPointerMove(event) {
   }
 }
 
-function handleSplatPointerDown() {
+function handleSplatPointerDown(event) {
+  splatFpvControls.beginDrag(event);
   splatRenderer.domElement.style.cursor = "grabbing";
 }
 
 function handleSplatPointerUp(event) {
   splatRenderer.domElement.style.cursor = hoveredFrame ? "pointer" : "grab";
+  const wasClick = splatFpvControls.endDrag(event);
+  if (!wasClick) return;
   const frame = pickFrame(event);
   if (!frame) return;
   if (isFrameBlockedBySplat(frame)) {
@@ -558,7 +721,9 @@ function updateOcclusion(now) {
 }
 
 function animate(now) {
-  splatControls.update();
+  const deltaSeconds = Math.min(0.05, Math.max(0.001, (now - lastAnimationTime) / 1000 || 0.016));
+  lastAnimationTime = now;
+  splatFpvControls.update(deltaSeconds);
   cloudControls.update();
   updateOcclusion(now);
   splatRenderer.render(splatScene, splatCamera);
@@ -567,13 +732,23 @@ function animate(now) {
 
 function bindEvents() {
   window.addEventListener("resize", resizeRenderers);
+  window.addEventListener("keydown", (event) => {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    if (/^(KeyW|KeyA|KeyS|KeyD|KeyQ|KeyE|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Space)$/.test(event.code)) {
+      event.preventDefault();
+    }
+    splatFpvControls.keyDown(event);
+  });
+  window.addEventListener("keyup", (event) => splatFpvControls.keyUp(event));
   frameSearch.addEventListener("input", filterFrameList);
+  swapViewportButtons.forEach((button) => button.addEventListener("click", togglePrimaryViewport));
 
   splatRenderer.domElement.addEventListener("pointermove", handleSplatPointerMove);
   splatRenderer.domElement.addEventListener("pointerdown", handleSplatPointerDown);
   splatRenderer.domElement.addEventListener("pointerup", handleSplatPointerUp);
   splatRenderer.domElement.addEventListener("pointerleave", () => {
     splatRenderer.domElement.style.cursor = "grab";
+    splatFpvControls.endDrag({});
     hoveredFrame = null;
     refreshFrameVisuals();
   });
@@ -633,5 +808,19 @@ async function init() {
     setSplatStatus("Startup failed");
   }
 }
+
+window.afternoonViewer = {
+  getState() {
+    return {
+      primaryViewport: state.primaryViewport,
+      activeFrame: activeFrame?.id ?? null,
+      splatCameraPosition: splatCamera.position.toArray(),
+      splatCameraDirection: splatCamera.getWorldDirection(new THREE.Vector3()).toArray(),
+      cloudCameraPosition: cloudCamera.position.toArray(),
+      cloudStatus: cloudStatus.textContent,
+      splatStatus: splatStatus.textContent,
+    };
+  },
+};
 
 init();

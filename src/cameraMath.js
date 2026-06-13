@@ -50,11 +50,19 @@ export function boxFromFrames(frames) {
   return box;
 }
 
-export function setCameraToFrame(camera, controls, frame) {
+export function setCameraToFrame(camera, controls, frame, focusBox = null) {
   const position = framePosition(frame);
   const forward = frameForward(frame);
+  let focusDistance = 1.6;
+  if (focusBox && !focusBox.isEmpty()) {
+    const center = focusBox.getCenter(new THREE.Vector3());
+    const projected = center.sub(position).dot(forward);
+    if (Number.isFinite(projected) && projected > 0) {
+      focusDistance = THREE.MathUtils.clamp(projected, 0.8, 8);
+    }
+  }
   camera.position.copy(position);
-  controls.target.copy(position).addScaledVector(forward, 1.6);
+  controls.target.copy(position).addScaledVector(forward, focusDistance);
   camera.near = 0.005;
   camera.far = 1000;
   camera.updateProjectionMatrix();

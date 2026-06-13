@@ -21,9 +21,13 @@ npm run dev
 
 ## Controls
 
-- Orbit/zoom/pan independently in the stereo PLY area and the 3DGS splat area.
+- The 3DGS splat area is the default primary viewport.
+- Use mouse-drag to look around in the 3DGS splat area, and use `W/A/S/D` to move through it in FPV style.
+- `W/A/S/D` movement is projected onto a Z-up ground plane. `Q/E` move down/up for quick inspection until per-scene ground planes are configured.
+- Use the swap button in either viewport toolbar to exchange the primary and secondary render areas.
+- Orbit/zoom/pan remains available in the stereo PLY area.
 - Click a camera icon/frustum in the splat area, or click a timestamp row, to load that frame's point cloud in the stereo PLY area.
-- By default, the stereo PLY camera is moved to the selected registered capture angle after the cloud loads.
+- By default, the stereo PLY camera starts at the selected registered camera position and looks toward the loaded captured points.
 - Toolbar buttons toggle fit view, view-from-camera mode, splat visibility, selected cloud visibility, camera frustums, occlusion checks, and the decorative frustum splat layer.
 - The right panel provides timestamp search, selected-frame metadata, thumbnail preview, and point count.
 

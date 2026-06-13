@@ -45,6 +45,7 @@ button {
   height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 430px;
+  grid-template-rows: minmax(0, 1fr);
   background: #111315;
 }
 
@@ -56,12 +57,9 @@ button {
   overflow: hidden;
 }
 
-.cloud-stage {
-  border-right: 1px solid var(--line);
-  background: #121417;
-}
-
 .right-rail {
+  grid-column: 2;
+  grid-row: 1;
   min-width: 0;
   min-height: 0;
   display: grid;
@@ -69,8 +67,24 @@ button {
   background: var(--panel);
 }
 
-.splat-stage {
+.app-shell > .cloud-stage,
+.app-shell > .splat-stage {
+  grid-column: 1;
+  grid-row: 1;
+  border-right: 1px solid var(--line);
+}
+
+.right-rail > .cloud-stage,
+.right-rail > .splat-stage {
+  grid-row: 1;
   border-bottom: 1px solid var(--line);
+}
+
+.cloud-stage {
+  background: #121417;
+}
+
+.splat-stage {
   background: #111315;
 }
 
@@ -371,17 +385,25 @@ button {
     grid-template-rows: minmax(0, 1fr) 46vh;
   }
 
-  .cloud-stage {
+  .app-shell > .cloud-stage,
+  .app-shell > .splat-stage {
+    grid-column: 1;
+    grid-row: 1;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
 
   .right-rail {
+    grid-column: 1;
+    grid-row: 2;
     grid-template-columns: minmax(280px, 42vw) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
   }
 
-  .splat-stage {
+  .right-rail > .cloud-stage,
+  .right-rail > .splat-stage {
+    grid-column: 1;
+    grid-row: 1;
     border-bottom: 0;
     border-right: 1px solid var(--line);
   }
@@ -405,7 +427,8 @@ button {
     grid-template-rows: 230px minmax(0, 1fr);
   }
 
-  .splat-stage {
+  .right-rail > .cloud-stage,
+  .right-rail > .splat-stage {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
