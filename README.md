@@ -44,6 +44,16 @@ Open the printed Vite URL, usually:
 http://127.0.0.1:5173/
 ```
 
+## Controls
+
+- The left/main 3DGS view is the maneuver view.
+- Click the 3DGS view once to focus it, then use `W/A/S/D` to move.
+- Drag with the left mouse button inside the 3DGS view to look around.
+- Use `Q/E` to move down/up along the fitted ground normal.
+- Click a camera frustum/icon in the 3DGS view, or click a timestamp in the right panel, to load that camera's stereo point cloud.
+- The stereo PLY view starts from the stereo camera origin and looks along camera `+Z`; orbit/zoom/pan are available there with the mouse.
+- Use the toolbar buttons to reset views, swap the two viewports, toggle splat/cloud visibility, toggle camera frustums, and toggle occlusion hiding.
+
 ## Notes
 
 Large generated assets are intentionally not committed to Git. `build:data` creates `public/data/afternoon/` locally, including the decimated stereo-camera PLY files used by the browser viewer.
