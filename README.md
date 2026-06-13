@@ -5,7 +5,7 @@ Spark/Three.js rewrite of the original 3DGS point-cloud viewer.
 The app has two coordinated Three.js render areas:
 
 - The 3DGS splat area renders the trained Gaussian splat and clickable registered stereo camera icons.
-- The stereo PLY area renders the currently selected camera's world-aligned point cloud.
+- The stereo PLY area renders the currently selected camera's native stereo-camera point cloud.
 
 Clicking a camera icon in the splat area swaps the point cloud shown in the stereo PLY area.
 
@@ -29,7 +29,7 @@ npm run dev
 - Use the swap button in either viewport toolbar to exchange the primary and secondary render areas.
 - Orbit/zoom/pan remains available in the stereo PLY area.
 - Click a camera icon/frustum in the splat area, or click a timestamp row, to load that frame's point cloud in the stereo PLY area.
-- By default, the stereo PLY camera starts at the selected registered camera position and looks toward the loaded captured points.
+- By default, the stereo PLY camera starts at the stereo sensor origin and looks along camera `+Z` toward the loaded captured points.
 - Toolbar buttons toggle fit view, view-from-camera mode, splat visibility, selected cloud visibility, camera frustums, occlusion checks, and the decorative frustum splat layer.
 - The right panel provides timestamp search, selected-frame metadata, thumbnail preview, and point count.
 
@@ -63,7 +63,8 @@ Large splat/cloud files are intentionally ignored by Git. The manifest is small 
 - Spark renders `AFTERNOON_ONLY.ply` in the splat area only.
 - The stereo PLY area is a separate Three.js renderer/scene that displays one selected downsampled point cloud at a time.
 - Camera markers are generated from `stereo_camera_poses.json`, not from the decorative frustum splat PLY.
-- The dataset builder transforms each stereo cloud from camera coordinates to 3DGS world coordinates using `quaternion_wxyz_c2w` and `position`.
+- The dataset builder keeps each stereo cloud in camera-native OpenCV coordinates for the stereo PLY area: `+X` image-right, `+Y` image-down, and `+Z` from the image sensor toward the scene.
+- The manifest also stores `worldCloudBounds` transformed by `quaternion_wxyz_c2w` and `position` so the splat area can still compute world-scale framing.
 - Point clouds are downsampled before browser use. The raw `cloud.ply` files are too large for smooth click-to-load interaction.
 - Marker visibility uses a downsampled proxy sampled from the 3DGS splat centers so cameras hidden behind walls can be suppressed instead of floating through the scene as HTML overlays.
 - Canvas clicks also run a Spark splat raycast guard before opening a camera, so a camera blocked by the splat scene is not accidentally selected from behind a wall.

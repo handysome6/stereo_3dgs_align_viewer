@@ -6,6 +6,14 @@
     "convention": "position = camera center in world; qvec_w2c/tvec_w2c are COLMAP world->camera; quaternion_wxyz_c2w is camera->world",
     "registeredFrames": 50
   },
+  "stereoCloudCoordinateFrame": {
+    "name": "stereo-camera-opencv",
+    "axes": {
+      "x": "+X points right in the image",
+      "y": "+Y points down in the image",
+      "z": "+Z points from the image sensor toward the outside scene"
+    }
+  },
   "assets": {
     "splatUrl": "/data/afternoon/AFTERNOON_ONLY.ply",
     "frustumSplatUrl": "/data/afternoon/stereo_camera_frustums.ply",
@@ -53,10 +61,23 @@
         0.581200961776,
         -0.111820295718
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812336309153304.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812336309153304.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812336309153304.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.2196197509765625,
+          -2.9156341552734375,
+          1.3568083047866821
+        ],
+        "max": [
+          4.447626113891602,
+          0.9759404063224792,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.9034101963043213,
           -1.8164827823638916,
@@ -112,10 +133,23 @@
         0.556624502724,
         -0.18974787546
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812336416749770.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812336416749770.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812336416749770.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.23729133605957,
+          -3.3013904094696045,
+          1.394214153289795
+        ],
+        "max": [
+          4.447626113891602,
+          2.4793570041656494,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.4698219299316406,
           -5.028143405914307,
@@ -171,10 +205,23 @@
         0.511559487621,
         -0.279138267654
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812336487500548.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812336487500548.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812336487500548.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -3.336113691329956,
+          -3.335611581802368,
+          1.1645392179489136
+        ],
+        "max": [
+          4.448486328125,
+          3.306467294692993,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.6713383197784424,
           -6.452625274658203,
@@ -230,10 +277,23 @@
         0.62944838103,
         -0.11989482811
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812336687933918.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812336687933918.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812336687933918.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.226246356964111,
+          -2.9893999099731445,
+          1.4121829271316528
+        ],
+        "max": [
+          4.427612781524658,
+          1.0746185779571533,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.9865293502807617,
           -1.3935166597366333,
@@ -289,10 +349,23 @@
         0.628477999406,
         -0.262014886353
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812336780526112.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812336780526112.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812336780526112.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.242428302764893,
+          -3.3357040882110596,
+          1.4463577270507812
+        ],
+        "max": [
+          4.455113410949707,
+          2.6850032806396484,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.5341720581054688,
           -5.560429573059082,
@@ -348,10 +421,23 @@
         0.784221512982,
         -0.246132205879
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812336947241294.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812336947241294.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812336947241294.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.1761980056762695,
+          -3.3447396755218506,
+          2.039996862411499
+        ],
+        "max": [
+          4.341211795806885,
+          1.7380986213684082,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -3.2859349250793457,
           -4.71787691116333,
@@ -407,10 +493,23 @@
         0.866963918698,
         -0.262917661101
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812337110713484.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812337110713484.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812337110713484.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.240991592407227,
+          -3.3402185440063477,
+          1.979684829711914
+        ],
+        "max": [
+          4.325380802154541,
+          1.4188272953033447,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.9632036685943604,
           -3.059708595275879,
@@ -466,10 +565,23 @@
         0.928890747833,
         -0.280149024425
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812337226143224.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812337226143224.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812337226143224.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.249784469604492,
+          -2.336512565612793,
+          1.9545375108718872
+        ],
+        "max": [
+          4.460400581359863,
+          1.434962511062622,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -3.173704147338867,
           -1.658089518547058,
@@ -525,10 +637,23 @@
         0.943699239002,
         -0.295721359317
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812337326075994.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812337326075994.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812337326075994.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.2129926681518555,
+          -3.331017017364502,
+          1.4935539960861206
+        ],
+        "max": [
+          4.439295291900635,
+          2.102029800415039,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.6421144008636475,
           -1.6640961170196533,
@@ -584,10 +709,23 @@
         0.957234641739,
         -0.288298281936
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812337482725214.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812337482725214.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812337482725214.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.213218688964844,
+          -2.903322219848633,
+          0.8146658539772034
+        ],
+        "max": [
+          4.452904224395752,
+          1.5297589302062988,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.421731948852539,
           -0.9647071957588196,
@@ -643,10 +781,23 @@
         0.940610457556,
         -0.30164735944
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812337648151384.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812337648151384.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812337648151384.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.243199348449707,
+          -3.342527151107788,
+          0.8791379332542419
+        ],
+        "max": [
+          4.460400581359863,
+          1.6861933469772339,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.25242280960083,
           -2.2455554008483887,
@@ -702,10 +853,23 @@
         0.893267351174,
         -0.314743627798
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812337808261816.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812337808261816.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812337808261816.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.220323085784912,
+          -3.3378195762634277,
+          1.9758985042572021
+        ],
+        "max": [
+          4.454635143280029,
+          1.9321773052215576,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.4849144220352173,
           -3.3343021869659424,
@@ -761,10 +925,23 @@
         0.823530275581,
         -0.266775643396
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812337899135542.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812337899135542.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812337899135542.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.237354755401611,
+          -3.335611581802368,
+          2.2021281719207764
+        ],
+        "max": [
+          4.458189964294434,
+          1.558681845664978,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           0.31963256001472473,
           -3.625114917755127,
@@ -820,10 +997,23 @@
         -0.753043435897,
         0.240140928402
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812337999008116.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812337999008116.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812337999008116.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.2519965171813965,
+          -3.3447396755218506,
+          0.1133260503411293
+        ],
+        "max": [
+          3.8297276496887207,
+          -0.010698664002120495,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           1.435130000114441,
           -4.515213966369629,
@@ -879,10 +1069,23 @@
         -0.561098288105,
         0.151893408484
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812338308120176.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812338308120176.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812338308120176.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.2519965171813965,
+          -3.177227020263672,
+          1.302320957183838
+        ],
+        "max": [
+          4.452904224395752,
+          1.8774926662445068,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -0.2667956054210663,
           -3.3563859462738037,
@@ -938,10 +1141,23 @@
         -0.489185158878,
         0.143092042956
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812338424999068.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812338424999068.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812338424999068.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -3.837785005569458,
+          -2.511592149734497,
+          1.1127541065216064
+        ],
+        "max": [
+          4.419355392456055,
+          2.0543429851531982,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -0.5251851677894592,
           -3.5772266387939453,
@@ -997,10 +1213,23 @@
         -0.392411362408,
         0.120385678704
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812338541000448.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812338541000448.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812338541000448.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -3.878242015838623,
+          -2.491980791091919,
+          1.1951394081115723
+        ],
+        "max": [
+          4.443574905395508,
+          1.5468086004257202,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.8608033657073975,
           -2.980207681655884,
@@ -1056,10 +1285,23 @@
         -0.025504998721,
         -0.019877550508
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812339072191386.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812339072191386.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812339072191386.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.249059677124023,
+          -3.304772138595581,
+          1.3517361879348755
+        ],
+        "max": [
+          4.448486328125,
+          2.6941890716552734,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -3.842829704284668,
           -3.4385931491851807,
@@ -1115,10 +1357,23 @@
         -0.031452369665,
         -0.03389457673
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812339136870408.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812339136870408.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812339136870408.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.218214988708496,
+          -2.761460065841675,
+          1.118260145187378
+        ],
+        "max": [
+          4.434542179107666,
+          1.1752055883407593,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -3.8443491458892822,
           -1.9204787015914917,
@@ -1174,10 +1429,23 @@
         0.066950791749,
         0.005053711844
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812339257624836.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812339257624836.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812339257624836.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.238784313201904,
+          -2.428809404373169,
+          1.0503686666488647
+        ],
+        "max": [
+          4.437591552734375,
+          1.4762904644012451,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -4.333746433258057,
           -1.4745349884033203,
@@ -1233,10 +1501,23 @@
         -0.028897928104,
         -0.040683794995
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812339357670810.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812339357670810.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812339357670810.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.229954242706299,
+          -3.1583468914031982,
+          0.95607990026474
+        ],
+        "max": [
+          4.181315898895264,
+          3.191012144088745,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -4.810680866241455,
           -4.13767671585083,
@@ -1292,10 +1573,23 @@
         -0.009333677763,
         -0.083609223235
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812339657407680.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812339657407680.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812339657407680.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.238007068634033,
+          -2.6153244972229004,
+          0.9624419212341309
+        ],
+        "max": [
+          4.425032138824463,
+          1.1319409608840942,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -3.8592023849487305,
           -1.6386631727218628,
@@ -1351,10 +1645,23 @@
         0.001646007074,
         -0.052517299738
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812339727642000.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812339727642000.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812339727642000.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.242428302764893,
+          -3.333677291870117,
+          1.2765734195709229
+        ],
+        "max": [
+          4.415046691894531,
+          2.9497859477996826,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -3.7843129634857178,
           -3.6497743129730225,
@@ -1410,10 +1717,23 @@
         0.098780816238,
         0.008396338406
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812339991972274.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812339991972274.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812339991972274.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.22262716293335,
+          -2.3889284133911133,
+          0.9962513446807861
+        ],
+        "max": [
+          4.436084747314453,
+          1.541432499885559,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -4.023090839385986,
           -1.4304959774017334,
@@ -1469,10 +1789,23 @@
         0.02143158728,
         -0.04064232917
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812340095524586.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812340095524586.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812340095524586.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.231375694274902,
+          -3.3403146266937256,
+          1.1935614347457886
+        ],
+        "max": [
+          4.447999000549316,
+          3.3524584770202637,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -4.37168550491333,
           -3.8511905670166016,
@@ -1528,10 +1861,23 @@
         0.463471087793,
         0.019462250603
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812340231925130.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812340231925130.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812340231925130.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -1.493665099143982,
+          -3.321866035461426,
+          0.596190333366394
+        ],
+        "max": [
+          4.408641815185547,
+          1.8115227222442627,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.013948917388916,
           -1.0195940732955933,
@@ -1587,10 +1933,23 @@
         0.397630323707,
         -0.103665130314
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812340342264324.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812340342264324.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812340342264324.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -3.8474602699279785,
+          -3.19219970703125,
+          0.7348631620407104
+        ],
+        "max": [
+          4.450695514678955,
+          2.0911848545074463,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.7181612253189087,
           -1.8797640800476074,
@@ -1646,10 +2005,23 @@
         0.472265249038,
         -0.009650464347
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812340565016100.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812340565016100.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812340565016100.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -2.054054021835327,
+          -3.302353858947754,
+          0.5987571477890015
+        ],
+        "max": [
+          4.451178550720215,
+          1.2196141481399536,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.9169751405715942,
           -1.2240755558013916,
@@ -1705,10 +2077,23 @@
         0.359892985484,
         -0.136695051872
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812340633786194.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812340633786194.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812340633786194.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -1.282546043395996,
+          -3.251162528991699,
+          0.7230342626571655
+        ],
+        "max": [
+          4.450695514678955,
+          2.7054152488708496,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.7523504495620728,
           -3.8062520027160645,
@@ -1764,10 +2149,23 @@
         0.299890774744,
         -0.208532962983
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812340693769854.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812340693769854.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812340693769854.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -1.5787676572799683,
+          -3.338102340698242,
+          0.6572560667991638
+        ],
+        "max": [
+          4.427942276000977,
+          3.2064173221588135,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.8639870882034302,
           -6.338260173797607,
@@ -1823,10 +2221,23 @@
         0.574081729049,
         -0.047011306162
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812340833335526.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812340833335526.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812340833335526.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.229165077209473,
+          -2.547637939453125,
+          1.0028828382492065
+        ],
+        "max": [
+          4.414742946624756,
+          0.8596924543380737,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.664938449859619,
           -1.7537468671798706,
@@ -1882,10 +2293,23 @@
         0.578349500483,
         -0.175896095779
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812340906559992.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812340906559992.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812340906559992.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.244638919830322,
+          -3.3402185440063477,
+          1.0353312492370605
+        ],
+        "max": [
+          4.355416774749756,
+          1.6698143482208252,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.2334389686584473,
           -4.568796157836914,
@@ -1941,10 +2365,23 @@
         0.55850803331,
         -0.266807803471
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812340959129722.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812340959129722.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812340959129722.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -3.507561445236206,
+          -3.319911003112793,
+          0.9917427897453308
+        ],
+        "max": [
+          4.447999000549316,
+          2.9544732570648193,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.327207326889038,
           -6.488331317901611,
@@ -2000,10 +2437,23 @@
         0.629367118806,
         -0.190473715843
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812341381409590.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812341381409590.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812341381409590.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.245360374450684,
+          -3.338007688522339,
+          1.174372911453247
+        ],
+        "max": [
+          3.429980516433716,
+          2.0981152057647705,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -3.871560573577881,
           -4.793081283569336,
@@ -2059,10 +2509,23 @@
         0.721554295553,
         -0.203092797117
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812341515265236.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812341515265236.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812341515265236.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -3.601608991622925,
+          -3.3021459579467773,
+          0.9466931223869324
+        ],
+        "max": [
+          4.357361316680908,
+          1.3002392053604126,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.3062994480133057,
           -4.8515167236328125,
@@ -2118,10 +2581,23 @@
         -0.087989053955,
         -0.029873883691
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812341848396632.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812341848396632.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812341848396632.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -0.5087471008300781,
+          -3.13938307762146,
+          0.5216987729072571
+        ],
+        "max": [
+          4.428454399108887,
+          2.2043137550354004,
+          4.9634785652160645
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           1.5093950033187866,
           -0.12073273211717606,
@@ -2177,10 +2653,23 @@
         -0.43013206302,
         -0.004925628599
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812341939526960.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812341939526960.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812341939526960.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -0.9078659415245056,
+          -0.468749463558197,
+          0.6060835123062134
+        ],
+        "max": [
+          4.129578113555908,
+          2.7946207523345947,
+          4.623905658721924
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           1.3892072439193726,
           -0.17443133890628815,
@@ -2236,10 +2725,23 @@
         0.879883259351,
         -0.346822390475
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812342075889494.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812342075889494.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812342075889494.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.2240376472473145,
+          -3.333585739135742,
+          0.9880842566490173
+        ],
+        "max": [
+          4.396612644195557,
+          2.353586196899414,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -2.6075844764709473,
           -4.83522891998291,
@@ -2295,10 +2797,23 @@
         0.727301578662,
         -0.591298907025
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812342191156942.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812342191156942.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812342191156942.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -4.2519965171813965,
+          -3.3106470108032227,
+          0.685477614402771
+        ],
+        "max": [
+          4.412007808685303,
+          1.878260612487793,
+          4.997780799865723
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.2179932594299316,
           -5.156919956207275,
@@ -2354,10 +2869,23 @@
         -0.39881047575,
         0.081816205306
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812342664047130.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812342664047130.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812342664047130.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -0.5132108330726624,
+          -0.4765027165412903,
+          0.37148961424827576
+        ],
+        "max": [
+          0.4052671492099762,
+          0.4310362637042999,
+          0.8012174367904663
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           0.2664007842540741,
           -0.567549467086792,
@@ -2413,10 +2941,23 @@
         0.591753503314,
         -0.0943107898
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812343003039612.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812343003039612.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812343003039612.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -2.637338638305664,
+          -2.59592604637146,
+          0.2370845079421997
+        ],
+        "max": [
+          4.255411624908447,
+          1.769026517868042,
+          4.990882396697998
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.2333331108093262,
           -2.278639316558838,
@@ -2472,10 +3013,23 @@
         0.397988318764,
         -0.045387482035
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812343499253988.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812343499253988.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812343499253988.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -0.9710163474082947,
+          -2.137746810913086,
+          0.49424469470977783
+        ],
+        "max": [
+          1.7754954099655151,
+          0.9505887627601624,
+          3.661665201187134
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.2167930603027344,
           -0.9497435092926025,
@@ -2531,10 +3085,23 @@
         0.347923564873,
         -0.094381909547
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812343580554506.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812343580554506.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812343580554506.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -1.3419404029846191,
+          -2.0567572116851807,
+          0.6254790425300598
+        ],
+        "max": [
+          2.378880262374878,
+          1.527323842048645,
+          3.3006794452667236
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -0.8018040060997009,
           -0.9345823526382446,
@@ -2590,10 +3157,23 @@
         0.276943896418,
         -0.219401641661
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812343715918586.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812343715918586.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812343715918586.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -0.6303046345710754,
+          -0.9274523258209229,
+          0.5730872750282288
+        ],
+        "max": [
+          0.853218674659729,
+          1.7104942798614502,
+          3.3021864891052246
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -0.7190948724746704,
           -1.8207515478134155,
@@ -2649,10 +3229,23 @@
         0.175358909459,
         0.000701861301
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812343904642900.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812343904642900.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812343904642900.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -0.7082953453063965,
+          -1.5286917686462402,
+          0.6775778532028198
+        ],
+        "max": [
+          1.8124322891235352,
+          1.3063879013061523,
+          2.6924006938934326
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -0.37749046087265015,
           -0.5907589793205261,
@@ -2708,10 +3301,23 @@
         -0.611078102968,
         0.173391040652
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812343998630914.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812343998630914.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812343998630914.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -0.6318145990371704,
+          -0.5468125939369202,
+          0.41457170248031616
+        ],
+        "max": [
+          0.5897960066795349,
+          0.821309506893158,
+          1.2592353820800781
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.2861616611480713,
           -1.191275715827942,
@@ -2767,10 +3373,23 @@
         -0.514522048785,
         0.509842859751
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812344074574890.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812344074574890.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812344074574890.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -0.5366625785827637,
+          -0.7399016618728638,
+          0.49269577860832214
+        ],
+        "max": [
+          0.6326067447662354,
+          0.541923463344574,
+          1.3499698638916016
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -0.6852570176124573,
           -2.1789004802703857,
@@ -2826,10 +3445,23 @@
         0.533251447828,
         -0.14921950504
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812344260803470.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812344260803470.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812344260803470.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -1.8117647171020508,
+          -1.5408589839935303,
+          0.5377194285392761
+        ],
+        "max": [
+          0.9024284482002258,
+          1.4755886793136597,
+          2.9078361988067627
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           0.34681791067123413,
           -0.9684870839118958,
@@ -2885,10 +3517,23 @@
         0.478691271603,
         -0.443972525068
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812344333315098.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812344333315098.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812344333315098.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -1.8004179000854492,
+          -0.7829509973526001,
+          0.46680793166160583
+        ],
+        "max": [
+          0.516735315322876,
+          1.4418901205062866,
+          2.6079294681549072
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -0.20761443674564362,
           -1.8473851680755615,
@@ -2944,10 +3589,23 @@
         0.431276478598,
         -0.06273832195
       ],
-      "cloudUrl": "/data/afternoon/clouds/17812344486238176.world.decimated.ply",
+      "cloudUrl": "/data/afternoon/clouds/17812344486238176.camera.decimated.ply",
+      "cloudCoordinateFrame": "stereo-camera-opencv",
       "thumbnailUrl": "/data/afternoon/thumbs/17812344486238176.jpg",
       "pointCount": 280000,
       "cloudBounds": {
+        "min": [
+          -1.2498325109481812,
+          -2.148175001144409,
+          0.4552302956581116
+        ],
+        "max": [
+          1.3524061441421509,
+          0.8120909929275513,
+          3.5889768600463867
+        ]
+      },
+      "worldCloudBounds": {
         "min": [
           -1.0773805379867554,
           -1.0885637998580933,

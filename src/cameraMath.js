@@ -1,6 +1,8 @@
 import * as THREE from "three";
 
 const threeCameraFix = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+export const STEREO_CAMERA_FORWARD = new THREE.Vector3(0, 0, 1);
+export const STEREO_CAMERA_SCREEN_UP = new THREE.Vector3(0, -1, 0);
 
 export function quaternionWxyzToThree([w, x, y, z]) {
   return new THREE.Quaternion(x, y, z, w).normalize();
@@ -39,9 +41,10 @@ export function boxFromFrames(frames) {
   const box = new THREE.Box3();
   for (const frame of frames) {
     box.expandByPoint(framePosition(frame));
-    if (frame.cloudBounds) {
-      box.expandByPoint(new THREE.Vector3().fromArray(frame.cloudBounds.min));
-      box.expandByPoint(new THREE.Vector3().fromArray(frame.cloudBounds.max));
+    const worldCloudBounds = frame.worldCloudBounds ?? frame.cloudBounds;
+    if (worldCloudBounds) {
+      box.expandByPoint(new THREE.Vector3().fromArray(worldCloudBounds.min));
+      box.expandByPoint(new THREE.Vector3().fromArray(worldCloudBounds.max));
     }
     for (const point of frame.frustum ?? []) {
       box.expandByPoint(new THREE.Vector3().fromArray(point));
@@ -65,6 +68,28 @@ export function setCameraToFrame(camera, controls, frame, focusBox = null) {
   controls.target.copy(position).addScaledVector(forward, focusDistance);
   camera.near = 0.005;
   camera.far = 1000;
+  camera.updateProjectionMatrix();
+  controls.update();
+}
+
+export function setStereoCameraNativeView(camera, controls, focusBox = null) {
+  let focusDistance = 1.6;
+  let farDistance = 1000;
+
+  if (focusBox && !focusBox.isEmpty()) {
+    const center = focusBox.getCenter(new THREE.Vector3());
+    const size = focusBox.getSize(new THREE.Vector3());
+    if (Number.isFinite(center.z) && center.z > 0) {
+      focusDistance = THREE.MathUtils.clamp(center.z, 0.4, 12);
+    }
+    farDistance = Math.max(100, Math.max(Math.abs(focusBox.min.z), Math.abs(focusBox.max.z), size.length()) * 4);
+  }
+
+  camera.up.copy(STEREO_CAMERA_SCREEN_UP);
+  camera.position.set(0, 0, 0);
+  controls.target.copy(STEREO_CAMERA_FORWARD).multiplyScalar(focusDistance);
+  camera.near = 0.005;
+  camera.far = farDistance;
   camera.updateProjectionMatrix();
   controls.update();
 }

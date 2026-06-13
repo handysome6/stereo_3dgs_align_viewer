@@ -6,7 +6,15 @@ import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { createIcons, icons } from "lucide";
-import { boxFromFrames, fitCameraToBox, frameForward, framePosition, setCameraToFrame } from "./cameraMath.js";
+import {
+  STEREO_CAMERA_FORWARD,
+  STEREO_CAMERA_SCREEN_UP,
+  boxFromFrames,
+  fitCameraToBox,
+  frameForward,
+  framePosition,
+  setStereoCameraNativeView,
+} from "./cameraMath.js";
 import { OcclusionProxy } from "./OcclusionProxy.js";
 import "./styles.css";
 
@@ -125,6 +133,7 @@ splatScene.background = new THREE.Color(0x111315);
 
 const cloudCamera = new THREE.PerspectiveCamera(58, 1, 0.005, 1000);
 cloudCamera.position.set(4, -4, 2.8);
+cloudCamera.up.copy(STEREO_CAMERA_SCREEN_UP);
 const splatCamera = new THREE.PerspectiveCamera(58, 1, 0.01, 1000);
 splatCamera.position.set(7, -7, 4);
 splatCamera.layers.enable(FRAME_LAYER);
@@ -747,7 +756,7 @@ function loadPointCloud(frame) {
       cloudScene.add(activeCloud);
 
       if (state.stereoViewFromCamera) {
-        setCameraToFrame(cloudCamera, cloudControls, frame, cloudSceneBox);
+        setStereoCameraNativeView(cloudCamera, cloudControls, cloudSceneBox);
       } else {
         fitCloud();
       }
@@ -810,7 +819,8 @@ function fitCloud() {
     setCloudStatus("No cloud loaded yet");
     return;
   }
-  fitCameraToBox(cloudCamera, cloudControls, cloudSceneBox, new THREE.Vector3(0.55, -0.85, 0.5));
+  cloudCamera.up.copy(STEREO_CAMERA_SCREEN_UP);
+  fitCameraToBox(cloudCamera, cloudControls, cloudSceneBox, new THREE.Vector3(0.55, -0.55, -0.75));
 }
 
 function viewStereoFromSelectedCamera() {
@@ -818,7 +828,7 @@ function viewStereoFromSelectedCamera() {
     setCloudStatus("No selected camera yet");
     return;
   }
-  setCameraToFrame(cloudCamera, cloudControls, activeFrame, cloudSceneBox);
+  setStereoCameraNativeView(cloudCamera, cloudControls, cloudSceneBox);
 }
 
 function setPointerFromEvent(event) {
@@ -1097,7 +1107,7 @@ async function init() {
     fitSplat();
     updateSelectedPanel(null);
     updateFrameRows();
-    cloudControls.target.set(0, 0, 0);
+    cloudControls.target.copy(STEREO_CAMERA_FORWARD);
     cloudControls.update();
     splatRenderer.setAnimationLoop(animate);
   } catch (error) {
@@ -1113,6 +1123,8 @@ window.afternoonViewer = {
       primaryViewport: state.primaryViewport,
       fpsDragging: state.fpsDragging,
       activeFrame: activeFrame?.id ?? null,
+      activeCloudUrl: activeFrame?.cloudUrl ?? null,
+      activeCloudCoordinateFrame: activeFrame?.cloudCoordinateFrame ?? null,
       splatCameraPosition: splatCamera.position.toArray(),
       splatCameraDirection: splatCamera.getWorldDirection(new THREE.Vector3()).toArray(),
       splatFpsYaw: splatFpsControls.yaw,
@@ -1140,6 +1152,13 @@ window.afternoonViewer = {
       lastOcclusionDurationMs: lastOcclusionDepthDurationMs + lastOcclusionBatchDurationMs,
       visibleFrameCount,
       cloudCameraPosition: cloudCamera.position.toArray(),
+      cloudCameraDirection: cloudCamera.getWorldDirection(new THREE.Vector3()).toArray(),
+      cloudCameraUp: cloudCamera.up.toArray(),
+      stereoCloudAxes: {
+        x: "+X image right",
+        y: "+Y image down",
+        z: "+Z sensor to scene",
+      },
       cloudStatus: cloudStatus.textContent,
       splatStatus: splatStatus.textContent,
     };

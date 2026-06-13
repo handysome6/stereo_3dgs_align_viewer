@@ -102,6 +102,14 @@ def camera_to_world(points: np.ndarray, position: list[float], quaternion_wxyz_c
     return points @ rotation.T + translation
 
 
+def point_bounds(points: np.ndarray) -> dict[str, list[float]]:
+    points32 = points.astype(np.float32, copy=False)
+    return {
+        "min": points32.min(axis=0).astype(float).tolist(),
+        "max": points32.max(axis=0).astype(float).tolist(),
+    }
+
+
 def camera_frustum_points(
     position: list[float],
     quaternion_wxyz_c2w: list[float],
@@ -115,7 +123,7 @@ def camera_frustum_points(
     cx = float(intrinsics["cx"])
     cy = float(intrinsics["cy"])
 
-    # COLMAP/OpenCV camera coordinates: x right, y down, z forward.
+    # Stereo/OpenCV camera coordinates: +X right, +Y down, +Z from sensor toward scene.
     corners = np.array(
         [
             [0.0, 0.0, depth],
@@ -229,14 +237,11 @@ def build_cloud_asset(
     if all(name in names for name in ("red", "green", "blue")):
         colors = np.column_stack([data["red"][sampled], data["green"][sampled], data["blue"][sampled]]).astype(np.uint8)
 
-    write_xyzrgb_binary_ply(output_path, points_world, colors)
-    points32 = points_world.astype(np.float32, copy=False)
+    write_xyzrgb_binary_ply(output_path, points_camera, colors)
     return {
-        "count": int(len(points32)),
-        "bounds": {
-            "min": points32.min(axis=0).astype(float).tolist(),
-            "max": points32.max(axis=0).astype(float).tolist(),
-        },
+        "count": int(len(points_camera)),
+        "bounds": point_bounds(points_camera),
+        "worldBounds": point_bounds(points_world),
     }
 
 
@@ -296,7 +301,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, object]:
             missing_clouds.append(str(cloud_source))
             continue
 
-        cloud_target = cloud_output_dir / f"{frame_id}.world.decimated.ply"
+        cloud_target = cloud_output_dir / f"{frame_id}.camera.decimated.ply"
         position = pose["position"]
         quaternion = pose["quaternion_wxyz_c2w"]
         cloud_info = build_cloud_asset(
@@ -324,10 +329,12 @@ def build_manifest(args: argparse.Namespace) -> dict[str, object]:
             "label": f"{index:02d}",
             "position": [round(float(value), 8) for value in position],
             "quaternion_wxyz_c2w": [round(float(value), 12) for value in quaternion],
-            "cloudUrl": f"/data/afternoon/clouds/{frame_id}.world.decimated.ply",
+            "cloudUrl": f"/data/afternoon/clouds/{frame_id}.camera.decimated.ply",
+            "cloudCoordinateFrame": "stereo-camera-opencv",
             "thumbnailUrl": thumb_url,
             "pointCount": cloud_info["count"],
             "cloudBounds": cloud_info["bounds"],
+            "worldCloudBounds": cloud_info["worldBounds"],
             "frustum": [
                 [round(float(v), 8) for v in point]
                 for point in camera_frustum_points(position, quaternion, intrinsics, args.frustum_depth)
@@ -346,6 +353,14 @@ def build_manifest(args: argparse.Namespace) -> dict[str, object]:
             "coordinateFrame": raw.get("coordinate_frame"),
             "convention": raw.get("convention"),
             "registeredFrames": raw.get("n_registered"),
+        },
+        "stereoCloudCoordinateFrame": {
+            "name": "stereo-camera-opencv",
+            "axes": {
+                "x": "+X points right in the image",
+                "y": "+Y points down in the image",
+                "z": "+Z points from the image sensor toward the outside scene",
+            },
         },
         "assets": {
             "splatUrl": "/data/afternoon/AFTERNOON_ONLY.ply",
