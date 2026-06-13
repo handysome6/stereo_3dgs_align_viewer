@@ -22,8 +22,10 @@ npm run dev
 ## Controls
 
 - The 3DGS splat area is the default primary viewport.
-- Use mouse-drag to look around in the 3DGS splat area, and use `W/A/S/D` to move through it in FPV style.
+- Click empty space in the 3DGS splat area, or use the mouse-pointer toolbar button, to enter FPS mouse-look mode. `Esc` releases the pointer.
+- While FPS mouse-look is active, mouse motion changes the first-person view angle and `W/A/S/D` moves through the scene.
 - `W/A/S/D` movement is projected onto a Z-up ground plane. `Q/E` move down/up for quick inspection until per-scene ground planes are configured.
+- The reset button returns the splat camera to a registered stereo capture pose instead of an overview orbit angle.
 - Use the swap button in either viewport toolbar to exchange the primary and secondary render areas.
 - Orbit/zoom/pan remains available in the stereo PLY area.
 - Click a camera icon/frustum in the splat area, or click a timestamp row, to load that frame's point cloud in the stereo PLY area.
