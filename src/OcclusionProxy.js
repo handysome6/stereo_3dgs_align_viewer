@@ -79,4 +79,32 @@ export class OcclusionProxy {
     }
     return closest < this.projected.z - this.depthBias;
   }
+
+  isRayOccluded(origin, target, radius = 0.015, nearPadding = 0.08, targetPadding = 0.08) {
+    if (!this.points) return false;
+    const dx = target.x - origin.x;
+    const dy = target.y - origin.y;
+    const dz = target.z - origin.z;
+    const length = Math.hypot(dx, dy, dz);
+    if (length <= nearPadding + targetPadding) return false;
+
+    const dirX = dx / length;
+    const dirY = dy / length;
+    const dirZ = dz / length;
+    const radiusSq = radius * radius;
+    const maxAlong = length - targetPadding;
+
+    for (let index = 0; index < this.points.length; index += 3) {
+      const vx = this.points[index] - origin.x;
+      const vy = this.points[index + 1] - origin.y;
+      const vz = this.points[index + 2] - origin.z;
+      const along = vx * dirX + vy * dirY + vz * dirZ;
+      if (along <= nearPadding || along >= maxAlong) continue;
+
+      const distanceSq = vx * vx + vy * vy + vz * vz - along * along;
+      if (distanceSq < radiusSq) return true;
+    }
+
+    return false;
+  }
 }

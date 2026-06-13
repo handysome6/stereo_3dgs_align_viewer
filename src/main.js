@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
+import { LineMaterial } from "three/addons/lines/LineMaterial.js";
+import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { createIcons, icons } from "lucide";
 import { boxFromFrames, fitCameraToBox, frameForward, framePosition, setCameraToFrame } from "./cameraMath.js";
@@ -11,6 +14,12 @@ const MANIFEST_URL = "/data/afternoon/manifest.json";
 const FRAME_LAYER = 1;
 const FPS_START_FRAME_INDEX = 0;
 const GROUND_PLANE_NORMAL = new THREE.Vector3(0.00492588, -0.823496, 0.5673).normalize();
+const FPS_MOVE_SPEED = 3.0;
+const CAMERA_FRUSTUM_SCALE = 0.5;
+const CAMERA_FRUSTUM_LINE_WIDTH = 2;
+const CAMERA_OCCLUSION_RADIUS = 8;
+const CAMERA_OCCLUDED_CORNER_THRESHOLD = 2;
+const CAMERA_RAY_OCCLUSION_RADIUS = 0.015;
 
 const app = document.querySelector("#app");
 app.innerHTML = `
@@ -134,15 +143,15 @@ frameRoot.name = "registered-camera-icons";
 splatScene.add(frameRoot);
 
 const plyLoader = new PLYLoader();
-const occlusionProxy = new OcclusionProxy();
+const occlusionProxy = new OcclusionProxy({ gridWidth: 320, gridHeight: 200, depthBias: 0.01 });
 const splatSceneBox = new THREE.Box3();
 const cloudSceneBox = new THREE.Box3();
 const raycaster = new THREE.Raycaster();
 raycaster.layers.enable(FRAME_LAYER);
 const splatOcclusionRaycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
-const worldPosition = new THREE.Vector3();
 const rayDirection = new THREE.Vector3();
+const lineResolution = new THREE.Vector2();
 
 let manifest = null;
 let splatMesh = null;
@@ -199,7 +208,7 @@ function createFpsControls(camera, domElement, { groundNormal = GROUND_PLANE_NOR
   const controls = {
     target,
     mouseSensitivity: 0.0018,
-    moveSpeed: 2.0,
+    moveSpeed: FPS_MOVE_SPEED,
     boostMultiplier: 3.2,
     slowMultiplier: 0.35,
     yaw: 0,
@@ -374,10 +383,20 @@ function createRenderer(canvas, clearColor) {
 }
 
 function createMaterials() {
+  const createLineMaterial = (color, opacity = 1) =>
+    new LineMaterial({
+      color,
+      linewidth: CAMERA_FRUSTUM_LINE_WIDTH,
+      transparent: true,
+      opacity,
+      depthTest: true,
+      worldUnits: false,
+    });
+
   return {
-    line: new THREE.LineBasicMaterial({ color: 0x4fc3a7, transparent: true, opacity: 0.9, depthTest: true }),
-    lineHover: new THREE.LineBasicMaterial({ color: 0xd8f2e7, transparent: true, opacity: 1, depthTest: true }),
-    lineActive: new THREE.LineBasicMaterial({ color: 0xe5b75d, transparent: true, opacity: 1, depthTest: true }),
+    line: createLineMaterial(0x4fc3a7, 0.9),
+    lineHover: createLineMaterial(0xd8f2e7),
+    lineActive: createLineMaterial(0xe5b75d),
     marker: new THREE.MeshBasicMaterial({ color: 0x4fc3a7, transparent: true, opacity: 0.94, depthTest: true }),
     markerHover: new THREE.MeshBasicMaterial({ color: 0xd8f2e7, transparent: true, opacity: 1, depthTest: true }),
     markerActive: new THREE.MeshBasicMaterial({ color: 0xe5b75d, transparent: true, opacity: 1, depthTest: true }),
@@ -411,29 +430,45 @@ function resizeRenderer(renderer, camera, canvas) {
 function resizeRenderers() {
   resizeRenderer(cloudRenderer, cloudCamera, cloudCanvas);
   resizeRenderer(splatRenderer, splatCamera, splatCanvas);
+  updateLineMaterialResolution();
 }
 
 function createFrameGeometry(frame) {
-  const [origin, topLeft, topRight, bottomRight, bottomLeft] = frame.frustum.map((point) => new THREE.Vector3().fromArray(point));
-  const edgePoints = [
-    origin,
-    topLeft,
-    origin,
-    topRight,
-    origin,
-    bottomRight,
-    origin,
-    bottomLeft,
-    topLeft,
-    topRight,
-    topRight,
-    bottomRight,
-    bottomRight,
-    bottomLeft,
-    bottomLeft,
-    topLeft,
+  const [origin, topLeft, topRight, bottomRight, bottomLeft] = scaledFramePoints(frame);
+  const edgePositions = [
+    ...origin.toArray(),
+    ...topLeft.toArray(),
+    ...origin.toArray(),
+    ...topRight.toArray(),
+    ...origin.toArray(),
+    ...bottomRight.toArray(),
+    ...origin.toArray(),
+    ...bottomLeft.toArray(),
+    ...topLeft.toArray(),
+    ...topRight.toArray(),
+    ...topRight.toArray(),
+    ...bottomRight.toArray(),
+    ...bottomRight.toArray(),
+    ...bottomLeft.toArray(),
+    ...bottomLeft.toArray(),
+    ...topLeft.toArray(),
   ];
-  return new THREE.BufferGeometry().setFromPoints(edgePoints);
+  return new LineSegmentsGeometry().setPositions(edgePositions);
+}
+
+function scaledFramePoints(frame) {
+  const origin = framePosition(frame);
+  return frame.frustum.map((point, index) => {
+    const vertex = new THREE.Vector3().fromArray(point);
+    return index === 0 ? origin.clone() : origin.clone().add(vertex.sub(origin).multiplyScalar(CAMERA_FRUSTUM_SCALE));
+  });
+}
+
+function updateLineMaterialResolution() {
+  splatRenderer.getDrawingBufferSize(lineResolution);
+  for (const material of [materials.line, materials.lineHover, materials.lineActive]) {
+    material.resolution.copy(lineResolution);
+  }
 }
 
 function createFrameObject(frame) {
@@ -441,7 +476,7 @@ function createFrameObject(frame) {
   group.name = `camera-${frame.id}`;
   group.userData.frame = frame;
 
-  const line = new THREE.LineSegments(createFrameGeometry(frame), materials.line);
+  const line = new LineSegments2(createFrameGeometry(frame), materials.line);
   line.layers.set(FRAME_LAYER);
   line.userData.frame = frame;
   group.add(line);
@@ -460,7 +495,7 @@ function createFrameObject(frame) {
   group.add(pick);
 
   frameRoot.add(group);
-  frameObjects.set(frame.id, { frame, group, line, marker, pick, occluded: false });
+  frameObjects.set(frame.id, { frame, group, line, marker, pick, occluded: false, occlusionSamples: scaledFramePoints(frame) });
 }
 
 function refreshFrameVisuals() {
@@ -758,6 +793,21 @@ function isFrameBlockedBySplat(frame) {
   return hits.length > 0;
 }
 
+function isFrameProxyOccluded(frameObject) {
+  if (!occlusionProxy.count) return false;
+  if (occlusionProxy.isRayOccluded(splatCamera.position, frameObject.occlusionSamples[0], CAMERA_RAY_OCCLUSION_RADIUS)) {
+    return true;
+  }
+
+  let cornerOcclusionCount = 0;
+  for (let index = 0; index < frameObject.occlusionSamples.length; index += 1) {
+    const occluded = occlusionProxy.isOccluded(frameObject.occlusionSamples[index], splatCamera, CAMERA_OCCLUSION_RADIUS);
+    if (index === 0 && occluded) return true;
+    if (index > 0 && occluded) cornerOcclusionCount += 1;
+  }
+  return cornerOcclusionCount >= CAMERA_OCCLUDED_CORNER_THRESHOLD;
+}
+
 function handleSplatPointerMove(event) {
   if (splatFpsControls.dragLook(event)) {
     return;
@@ -787,7 +837,7 @@ function handleSplatPointerUp(event) {
 
 function updateOcclusion(now) {
   if (!state.camerasVisible || !manifest) return;
-  if (!state.occlusionEnabled || !occlusionProxy.count) {
+  if (!state.occlusionEnabled) {
     visibleFrameCount = manifest.frames.length;
     for (const frameObject of frameObjects.values()) {
       frameObject.occluded = false;
@@ -798,12 +848,11 @@ function updateOcclusion(now) {
   }
   if (now - lastOcclusionUpdate < 150) return;
   lastOcclusionUpdate = now;
-  occlusionProxy.update(splatCamera, now);
+  if (occlusionProxy.count) occlusionProxy.update(splatCamera, now);
   visibleFrameCount = 0;
 
   for (const frameObject of frameObjects.values()) {
-    worldPosition.copy(framePosition(frameObject.frame));
-    const occluded = occlusionProxy.isOccluded(worldPosition, splatCamera, 3);
+    const occluded = isFrameProxyOccluded(frameObject);
     frameObject.occluded = occluded;
     frameObject.group.visible = !occluded;
     if (!occluded) visibleFrameCount += 1;
@@ -917,6 +966,10 @@ window.afternoonViewer = {
       splatFpsYaw: splatFpsControls.yaw,
       splatFpsPitch: splatFpsControls.pitch,
       groundNormal: GROUND_PLANE_NORMAL.toArray(),
+      movementSpeed: FPS_MOVE_SPEED,
+      frustumScale: CAMERA_FRUSTUM_SCALE,
+      frustumLineWidth: CAMERA_FRUSTUM_LINE_WIDTH,
+      visibleFrameCount,
       cloudCameraPosition: cloudCamera.position.toArray(),
       cloudStatus: cloudStatus.textContent,
       splatStatus: splatStatus.textContent,
