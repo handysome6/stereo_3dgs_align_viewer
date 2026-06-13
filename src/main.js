@@ -18,7 +18,6 @@ app.innerHTML = `
       <canvas id="splatCanvas" class="scene-canvas" tabindex="0"></canvas>
       <div class="toolbar splat-toolbar" aria-label="Splat navigation tools">
         <button id="fitSplat" class="icon-button" type="button" title="Reset FPS camera"><i data-lucide="locate-fixed"></i></button>
-        <button id="toggleFpsLook" class="icon-button" type="button" title="Enter FPS mouse look"><i data-lucide="mouse-pointer-2"></i></button>
         <button class="icon-button swap-viewports" type="button" title="Swap render areas"><i data-lucide="replace"></i></button>
         <button id="toggleSplat" class="icon-button active" type="button" title="Toggle Gaussian splat"><i data-lucide="sparkles"></i></button>
         <button id="toggleCameras" class="icon-button active" type="button" title="Toggle camera icons"><i data-lucide="camera"></i></button>
@@ -26,7 +25,6 @@ app.innerHTML = `
         <button id="toggleFrustumSplat" class="icon-button" type="button" title="Toggle decorative frustum splat"><i data-lucide="aperture"></i></button>
       </div>
       <div class="viewport-label">3DGS Splat Area</div>
-      <div id="fpsReticle" class="fps-reticle" aria-hidden="true"></div>
       <div id="splatStatus" class="mini-status">Loading 3DGS</div>
     </section>
 
@@ -91,7 +89,6 @@ const fitCloudButton = document.querySelector("#fitCloud");
 const viewFromCameraButton = document.querySelector("#viewFromCamera");
 const toggleCloudButton = document.querySelector("#toggleCloud");
 const fitSplatButton = document.querySelector("#fitSplat");
-const toggleFpsLookButton = document.querySelector("#toggleFpsLook");
 const toggleSplatButton = document.querySelector("#toggleSplat");
 const toggleCamerasButton = document.querySelector("#toggleCameras");
 const toggleOcclusionButton = document.querySelector("#toggleOcclusion");
@@ -120,7 +117,7 @@ cloudControls.dampingFactor = 0.08;
 cloudControls.screenSpacePanning = true;
 
 const splatFpsControls = createFpsControls(splatCamera, splatRenderer.domElement, {
-  onLockChange: updateFpsUi,
+  onDragChange: updateFpsDragUi,
 });
 
 const spark = new SparkRenderer({
@@ -165,7 +162,7 @@ const materials = createMaterials();
 
 const state = {
   primaryViewport: "splat",
-  fpsLocked: false,
+  fpsDragging: false,
   splatVisible: true,
   cloudVisible: true,
   camerasVisible: true,
@@ -174,7 +171,7 @@ const state = {
   stereoViewFromCamera: true,
 };
 
-function createFpsControls(camera, domElement, { onLockChange } = {}) {
+function createFpsControls(camera, domElement, { onDragChange } = {}) {
   const up = new THREE.Vector3(0, 0, 1);
   const direction = new THREE.Vector3();
   const flatForward = new THREE.Vector3();
@@ -182,8 +179,13 @@ function createFpsControls(camera, domElement, { onLockChange } = {}) {
   const move = new THREE.Vector3();
   const keys = new Set();
   const target = new THREE.Vector3();
-  let locked = false;
-  let pointerLocked = false;
+  const drag = {
+    active: false,
+    moved: false,
+    pointerId: null,
+    lastX: 0,
+    lastY: 0,
+  };
 
   const controls = {
     target,
@@ -196,10 +198,11 @@ function createFpsControls(camera, domElement, { onLockChange } = {}) {
     syncFromCamera,
     setPose,
     lookBy,
-    lock,
-    unlock,
-    toggleLock,
-    isLocked,
+    beginDrag,
+    dragLook,
+    endDrag,
+    cancelDrag,
+    isDragging,
     update,
     keyDown,
     keyUp,
@@ -280,58 +283,49 @@ function createFpsControls(camera, domElement, { onLockChange } = {}) {
     applyLook();
   }
 
-  function handleMouseMove(event) {
-    if (!locked) return;
-    lookBy(event.movementX || 0, event.movementY || 0);
-  }
-
-  function setLocked(nextLocked) {
-    locked = nextLocked;
-    if (!locked) keys.clear();
-    onLockChange?.(locked);
-  }
-
-  function handlePointerLockChange() {
-    pointerLocked = domElement.ownerDocument.pointerLockElement === domElement;
-    setLocked(pointerLocked);
-  }
-
-  function handlePointerLockError() {
-    pointerLocked = false;
-    setLocked(true);
-  }
-
-  function lock() {
+  function beginDrag(event) {
     domElement.focus();
-    if (domElement.ownerDocument.pointerLockElement === domElement) {
-      pointerLocked = true;
-      setLocked(true);
-      return;
-    }
-    const request = domElement.requestPointerLock?.();
-    request?.catch?.(() => handlePointerLockError());
-    if (!request) handlePointerLockError();
+    drag.active = true;
+    drag.moved = false;
+    drag.pointerId = event.pointerId;
+    drag.lastX = event.clientX;
+    drag.lastY = event.clientY;
+    domElement.setPointerCapture?.(event.pointerId);
+    onDragChange?.(true);
   }
 
-  function unlock() {
-    if (pointerLocked && domElement.ownerDocument.pointerLockElement === domElement) {
-      domElement.ownerDocument.exitPointerLock();
-    } else {
-      pointerLocked = false;
-      setLocked(false);
-    }
+  function dragLook(event) {
+    if (!drag.active || event.pointerId !== drag.pointerId) return false;
+    const dx = event.clientX - drag.lastX;
+    const dy = event.clientY - drag.lastY;
+    drag.lastX = event.clientX;
+    drag.lastY = event.clientY;
+    if (Math.abs(dx) + Math.abs(dy) > 1) drag.moved = true;
+    lookBy(dx, dy);
+    return true;
   }
 
-  function toggleLock() {
-    if (locked) {
-      unlock();
-    } else {
-      lock();
-    }
+  function endDrag(event) {
+    if (!drag.active || event.pointerId !== drag.pointerId) return false;
+    const wasClick = !drag.moved;
+    releaseDrag();
+    return wasClick;
   }
 
-  function isLocked() {
-    return locked;
+  function cancelDrag() {
+    releaseDrag();
+  }
+
+  function releaseDrag() {
+    if (drag.pointerId !== null) domElement.releasePointerCapture?.(drag.pointerId);
+    drag.active = false;
+    drag.pointerId = null;
+    drag.moved = false;
+    onDragChange?.(false);
+  }
+
+  function isDragging() {
+    return drag.active;
   }
 
   function handlesKey(code) {
@@ -347,9 +341,6 @@ function createFpsControls(camera, domElement, { onLockChange } = {}) {
     keys.delete(event.code);
   }
 
-  domElement.ownerDocument.addEventListener("mousemove", handleMouseMove);
-  domElement.ownerDocument.addEventListener("pointerlockchange", handlePointerLockChange);
-  domElement.ownerDocument.addEventListener("pointerlockerror", handlePointerLockError);
   syncFromCamera();
   return controls;
 }
@@ -544,7 +535,6 @@ function applyVisibility() {
   if (activeCloud) activeCloud.visible = state.cloudVisible;
   frameRoot.visible = state.camerasVisible;
 
-  toggleFpsLookButton.classList.toggle("active", state.fpsLocked);
   toggleSplatButton.classList.toggle("active", state.splatVisible);
   toggleCloudButton.classList.toggle("active", state.cloudVisible);
   toggleCamerasButton.classList.toggle("active", state.camerasVisible);
@@ -554,12 +544,10 @@ function applyVisibility() {
   viewFromCameraButton.classList.toggle("active", state.stereoViewFromCamera);
 }
 
-function updateFpsUi(locked) {
-  state.fpsLocked = locked;
-  splatStage.classList.toggle("fps-locked", locked);
-  toggleFpsLookButton.classList.toggle("active", locked);
-  toggleFpsLookButton.title = locked ? "Exit FPS mouse look" : "Enter FPS mouse look";
-  if (locked) {
+function updateFpsDragUi(dragging) {
+  state.fpsDragging = dragging;
+  splatStage.classList.toggle("fps-dragging", dragging);
+  if (dragging) {
     hoveredFrame = null;
     refreshFrameVisuals();
   }
@@ -719,17 +707,8 @@ function setPointerFromEvent(event) {
   pointer.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
 }
 
-function setPointerToCenter() {
-  pointer.set(0, 0);
-}
-
 function pickFrame(event) {
   setPointerFromEvent(event);
-  return pickFrameFromPointer();
-}
-
-function pickFrameAtCenter() {
-  setPointerToCenter();
   return pickFrameFromPointer();
 }
 
@@ -764,7 +743,7 @@ function isFrameBlockedBySplat(frame) {
 }
 
 function handleSplatPointerMove(event) {
-  if (splatFpsControls.isLocked()) {
+  if (splatFpsControls.dragLook(event)) {
     return;
   }
   const nextHover = pickFrame(event);
@@ -777,21 +756,17 @@ function handleSplatPointerMove(event) {
 
 function handleSplatPointerDown(event) {
   if (event.button !== 0) return;
-  splatRenderer.domElement.focus();
+  splatFpsControls.beginDrag(event);
 }
 
 function handleSplatPointerUp(event) {
   if (event.button !== 0) return;
-  if (splatFpsControls.isLocked()) {
-    openFrameFromSplat(pickFrameAtCenter());
-    return;
-  }
+  const wasClick = splatFpsControls.endDrag(event);
+  if (!wasClick) return;
   const frame = pickFrame(event);
   if (frame) {
     openFrameFromSplat(frame);
-    return;
   }
-  splatFpsControls.lock();
 }
 
 function updateOcclusion(now) {
@@ -835,11 +810,11 @@ function bindEvents() {
   window.addEventListener("resize", resizeRenderers);
   window.addEventListener("keydown", (event) => {
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-    if (event.code === "Escape" && splatFpsControls.isLocked()) {
-      splatFpsControls.unlock();
+    if (event.code === "Escape" && splatFpsControls.isDragging()) {
+      splatFpsControls.cancelDrag();
       return;
     }
-    const splatKeyboardActive = splatFpsControls.isLocked() || document.activeElement === splatRenderer.domElement;
+    const splatKeyboardActive = document.activeElement === splatRenderer.domElement;
     if (splatKeyboardActive && splatFpsControls.handlesKey(event.code)) {
       event.preventDefault();
       splatFpsControls.keyDown(event);
@@ -853,13 +828,13 @@ function bindEvents() {
   splatRenderer.domElement.addEventListener("pointerdown", handleSplatPointerDown);
   splatRenderer.domElement.addEventListener("pointerup", handleSplatPointerUp);
   splatRenderer.domElement.addEventListener("pointerleave", () => {
-    splatRenderer.domElement.style.cursor = splatFpsControls.isLocked() ? "none" : "crosshair";
+    splatFpsControls.cancelDrag();
+    splatRenderer.domElement.style.cursor = "crosshair";
     hoveredFrame = null;
     refreshFrameVisuals();
   });
 
   fitSplatButton.addEventListener("click", fitSplat);
-  toggleFpsLookButton.addEventListener("click", () => splatFpsControls.toggleLock());
   fitCloudButton.addEventListener("click", fitCloud);
   viewFromCameraButton.addEventListener("click", () => {
     state.stereoViewFromCamera = !state.stereoViewFromCamera;
@@ -919,7 +894,7 @@ window.afternoonViewer = {
   getState() {
     return {
       primaryViewport: state.primaryViewport,
-      fpsLocked: state.fpsLocked,
+      fpsDragging: state.fpsDragging,
       activeFrame: activeFrame?.id ?? null,
       splatCameraPosition: splatCamera.position.toArray(),
       splatCameraDirection: splatCamera.getWorldDirection(new THREE.Vector3()).toArray(),
@@ -929,9 +904,6 @@ window.afternoonViewer = {
       cloudStatus: cloudStatus.textContent,
       splatStatus: splatStatus.textContent,
     };
-  },
-  testLookBy(movementX, movementY) {
-    splatFpsControls.lookBy(movementX, movementY);
   },
 };
 

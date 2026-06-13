@@ -99,46 +99,8 @@ button {
   cursor: crosshair;
 }
 
-.splat-stage.fps-locked .scene-canvas {
-  cursor: none;
-}
-
-.fps-reticle {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 20px;
-  height: 20px;
-  z-index: 2;
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-}
-
-.fps-reticle::before,
-.fps-reticle::after {
-  content: "";
-  position: absolute;
-  background: rgba(244, 241, 234, 0.9);
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.55);
-}
-
-.fps-reticle::before {
-  left: 9px;
-  top: 3px;
-  width: 2px;
-  height: 14px;
-}
-
-.fps-reticle::after {
-  left: 3px;
-  top: 9px;
-  width: 14px;
-  height: 2px;
-}
-
-.splat-stage.fps-locked .fps-reticle {
-  opacity: 1;
+.splat-stage.fps-dragging .scene-canvas {
+  cursor: grabbing;
 }
 
 .toolbar {
