@@ -24,6 +24,10 @@ const CAMERA_RAY_OCCLUDED_SAMPLE_THRESHOLD = 1;
 const CAMERA_MARKER_OCCLUSION_SHELL_RADIUS = 0.08;
 const CAMERA_RAY_NEAR_PADDING = 0.08;
 const CAMERA_RAY_TARGET_PADDING = 0.08;
+const CAMERA_OCCLUSION_IDLE_INTERVAL_MS = 150;
+const CAMERA_OCCLUSION_MOVING_INTERVAL_MS = 260;
+const CAMERA_OCCLUSION_IDLE_BATCH_SIZE = 16;
+const CAMERA_OCCLUSION_MOVING_BATCH_SIZE = 8;
 
 const app = document.querySelector("#app");
 app.innerHTML = `
@@ -124,6 +128,7 @@ cloudCamera.position.set(4, -4, 2.8);
 const splatCamera = new THREE.PerspectiveCamera(58, 1, 0.01, 1000);
 splatCamera.position.set(7, -7, 4);
 splatCamera.layers.enable(FRAME_LAYER);
+const occlusionCamera = new THREE.PerspectiveCamera();
 
 const cloudControls = new OrbitControls(cloudCamera, cloudRenderer.domElement);
 cloudControls.enableDamping = true;
@@ -147,7 +152,7 @@ frameRoot.name = "registered-camera-icons";
 splatScene.add(frameRoot);
 
 const plyLoader = new PLYLoader();
-const occlusionProxy = new OcclusionProxy({ gridWidth: 320, gridHeight: 200, depthBias: 0.01 });
+const occlusionProxy = new OcclusionProxy({ gridWidth: 320, gridHeight: 200, depthBias: 0.01, depthPointStride: 4 });
 const splatSceneBox = new THREE.Box3();
 const cloudSceneBox = new THREE.Box3();
 const raycaster = new THREE.Raycaster();
@@ -169,8 +174,13 @@ let activeFrame = null;
 let hoveredFrame = null;
 let cloudLoadToken = 0;
 let lastOcclusionUpdate = 0;
+let lastOcclusionDepthDurationMs = 0;
+let lastOcclusionBatchDurationMs = 0;
 let lastAnimationTime = 0;
 let visibleFrameCount = 0;
+let occlusionPassActive = false;
+let occlusionPassCursor = 0;
+let occlusionPassObjects = [];
 
 const frameObjects = new Map();
 const frameRows = new Map();
@@ -228,6 +238,7 @@ function createFpsControls(camera, domElement, { groundNormal = GROUND_PLANE_NOR
     endDrag,
     cancelDrag,
     isDragging,
+    isMoving,
     update,
     keyDown,
     keyUp,
@@ -358,6 +369,24 @@ function createFpsControls(camera, domElement, { groundNormal = GROUND_PLANE_NOR
 
   function isDragging() {
     return drag.active;
+  }
+
+  function isMoving() {
+    return (
+      keys.has("KeyW") ||
+      keys.has("KeyA") ||
+      keys.has("KeyS") ||
+      keys.has("KeyD") ||
+      keys.has("ArrowUp") ||
+      keys.has("ArrowDown") ||
+      keys.has("ArrowLeft") ||
+      keys.has("ArrowRight") ||
+      keys.has("KeyQ") ||
+      keys.has("KeyE") ||
+      keys.has("Space") ||
+      keys.has("ControlLeft") ||
+      keys.has("ControlRight")
+    );
   }
 
   function handlesKey(code) {
@@ -842,15 +871,15 @@ function isFrameBlockedBySplat(frame) {
   return hits.length > 0;
 }
 
-function markerOcclusionTargets(frameOrigin) {
-  markerShellDirection.copy(frameOrigin).sub(splatCamera.position);
+function markerOcclusionTargets(frameOrigin, camera = splatCamera) {
+  markerShellDirection.copy(frameOrigin).sub(camera.position);
   const distance = markerShellDirection.length();
   if (distance < 1e-5) return [frameOrigin];
 
   markerShellDirection.multiplyScalar(1 / distance);
-  markerShellRight.crossVectors(markerShellDirection, splatCamera.up);
+  markerShellRight.crossVectors(markerShellDirection, camera.up);
   if (markerShellRight.lengthSq() < 1e-6) {
-    markerShellRight.setFromMatrixColumn(splatCamera.matrixWorld, 0);
+    markerShellRight.setFromMatrixColumn(camera.matrixWorld, 0);
   }
   markerShellRight.normalize();
   markerShellUp.crossVectors(markerShellRight, markerShellDirection).normalize();
@@ -865,23 +894,23 @@ function markerOcclusionTargets(frameOrigin) {
   ];
 }
 
-function isFrameProxyOccluded(frameObject) {
+function isFrameProxyOccluded(frameObject, camera = splatCamera) {
   if (!occlusionProxy.count) return false;
-  if (occlusionProxy.isOccluded(frameObject.occlusionSamples[0], splatCamera, CAMERA_OCCLUSION_RADIUS)) {
+  if (occlusionProxy.isOccluded(frameObject.occlusionSamples[0], camera, CAMERA_OCCLUSION_RADIUS)) {
     return true;
   }
 
   let sampleOcclusionCount = 0;
   for (let index = 1; index < frameObject.occlusionSamples.length; index += 1) {
-    const occluded = occlusionProxy.isOccluded(frameObject.occlusionSamples[index], splatCamera, CAMERA_OCCLUSION_RADIUS);
+    const occluded = occlusionProxy.isOccluded(frameObject.occlusionSamples[index], camera, CAMERA_OCCLUSION_RADIUS);
     if (!occluded) continue;
     sampleOcclusionCount += 1;
     if (sampleOcclusionCount >= CAMERA_OCCLUDED_SAMPLE_THRESHOLD) return true;
   }
 
   const rayHits = occlusionProxy.countOccludedRays(
-    splatCamera.position,
-    markerOcclusionTargets(frameObject.occlusionSamples[0]),
+    camera.position,
+    markerOcclusionTargets(frameObject.occlusionSamples[0], camera),
     CAMERA_RAY_OCCLUSION_RADIUS,
     CAMERA_RAY_NEAR_PADDING,
     CAMERA_RAY_TARGET_PADDING,
@@ -924,6 +953,9 @@ function handleSplatPointerUp(event) {
 function updateOcclusion(now) {
   if (!state.camerasVisible || !manifest) return;
   if (!state.occlusionEnabled) {
+    occlusionPassActive = false;
+    lastOcclusionDepthDurationMs = 0;
+    lastOcclusionBatchDurationMs = 0;
     visibleFrameCount = manifest.frames.length;
     for (const frameObject of frameObjects.values()) {
       frameObject.occluded = false;
@@ -933,20 +965,52 @@ function updateOcclusion(now) {
     updateFrameRows();
     return;
   }
-  if (now - lastOcclusionUpdate < 150) return;
-  lastOcclusionUpdate = now;
-  if (occlusionProxy.count) occlusionProxy.update(splatCamera, now);
-  visibleFrameCount = 0;
+  const updateInterval = splatFpsControls.isMoving() || splatFpsControls.isDragging() ? CAMERA_OCCLUSION_MOVING_INTERVAL_MS : CAMERA_OCCLUSION_IDLE_INTERVAL_MS;
+  if (!occlusionPassActive && now - lastOcclusionUpdate >= updateInterval) {
+    beginOcclusionPass(now);
+  }
+  if (occlusionPassActive) {
+    processOcclusionBatch();
+  }
+}
 
-  for (const frameObject of frameObjects.values()) {
-    const occluded = isFrameProxyOccluded(frameObject);
+function beginOcclusionPass(now) {
+  lastOcclusionUpdate = now;
+  const start = performance.now();
+  occlusionCamera.copy(splatCamera, false);
+  occlusionCamera.updateMatrixWorld(true);
+  occlusionCamera.updateProjectionMatrix();
+  if (occlusionProxy.count) occlusionProxy.update(occlusionCamera, now);
+  lastOcclusionDepthDurationMs = performance.now() - start;
+  occlusionPassObjects = Array.from(frameObjects.values());
+  occlusionPassCursor = 0;
+  occlusionPassActive = true;
+}
+
+function processOcclusionBatch() {
+  const start = performance.now();
+  const batchSize = splatFpsControls.isMoving() || splatFpsControls.isDragging() ? CAMERA_OCCLUSION_MOVING_BATCH_SIZE : CAMERA_OCCLUSION_IDLE_BATCH_SIZE;
+  const end = Math.min(occlusionPassObjects.length, occlusionPassCursor + batchSize);
+
+  for (; occlusionPassCursor < end; occlusionPassCursor += 1) {
+    const frameObject = occlusionPassObjects[occlusionPassCursor];
+    const occluded = isFrameProxyOccluded(frameObject, occlusionCamera);
     frameObject.occluded = occluded;
     frameObject.group.visible = !occluded;
     frameObject.pick.visible = !occluded;
-    if (!occluded) visibleFrameCount += 1;
   }
+
+  visibleFrameCount = 0;
+  for (const frameObject of frameObjects.values()) {
+    if (!frameObject.occluded) visibleFrameCount += 1;
+  }
+
   updateFrameRows();
   if (activeFrame) updateSelectedPanel(activeFrame);
+  lastOcclusionBatchDurationMs = performance.now() - start;
+  if (occlusionPassCursor >= occlusionPassObjects.length) {
+    occlusionPassActive = false;
+  }
 }
 
 function animate(now) {
@@ -1063,7 +1127,17 @@ window.afternoonViewer = {
         rayRadius: CAMERA_RAY_OCCLUSION_RADIUS,
         raySampleThreshold: CAMERA_RAY_OCCLUDED_SAMPLE_THRESHOLD,
         markerShellRadius: CAMERA_MARKER_OCCLUSION_SHELL_RADIUS,
+        idleIntervalMs: CAMERA_OCCLUSION_IDLE_INTERVAL_MS,
+        movingIntervalMs: CAMERA_OCCLUSION_MOVING_INTERVAL_MS,
+        idleBatchSize: CAMERA_OCCLUSION_IDLE_BATCH_SIZE,
+        movingBatchSize: CAMERA_OCCLUSION_MOVING_BATCH_SIZE,
       },
+      occlusionProxyCells: occlusionProxy.spatialCells?.size ?? 0,
+      occlusionDepthPointStride: occlusionProxy.depthPointStride,
+      occlusionPassActive,
+      lastOcclusionDepthDurationMs,
+      lastOcclusionBatchDurationMs,
+      lastOcclusionDurationMs: lastOcclusionDepthDurationMs + lastOcclusionBatchDurationMs,
       visibleFrameCount,
       cloudCameraPosition: cloudCamera.position.toArray(),
       cloudStatus: cloudStatus.textContent,

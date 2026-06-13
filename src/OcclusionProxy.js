@@ -1,12 +1,17 @@
 import * as THREE from "three";
 
 export class OcclusionProxy {
-  constructor({ gridWidth = 180, gridHeight = 120, depthBias = 0.03 } = {}) {
+  constructor({ gridWidth = 180, gridHeight = 120, depthBias = 0.03, rayCellSize = 0.32, depthPointStride = 1 } = {}) {
     this.gridWidth = gridWidth;
     this.gridHeight = gridHeight;
     this.depthBias = depthBias;
+    this.rayCellSize = rayCellSize;
+    this.rayCellInverse = 1 / rayCellSize;
+    this.depthPointStride = Math.max(1, Math.floor(depthPointStride));
     this.depth = new Float32Array(gridWidth * gridHeight);
     this.points = null;
+    this.spatialCells = null;
+    this.spatialScratch = new Set();
     this.projected = new THREE.Vector3();
     this.lastUpdate = 0;
   }
@@ -19,6 +24,7 @@ export class OcclusionProxy {
     if (this.points.length % 3 !== 0) {
       throw new Error("Occlusion proxy must be float32 xyz triples");
     }
+    this.buildSpatialIndex();
   }
 
   get count() {
@@ -31,7 +37,8 @@ export class OcclusionProxy {
     camera.updateMatrixWorld();
     camera.updateProjectionMatrix();
 
-    for (let index = 0; index < this.points.length; index += 3) {
+    const pointStep = 3 * this.depthPointStride;
+    for (let index = 0; index < this.points.length; index += pointStep) {
       this.projected.set(this.points[index], this.points[index + 1], this.points[index + 2]).project(camera);
       if (
         this.projected.x < -1 ||
@@ -106,6 +113,28 @@ export class OcclusionProxy {
 
     if (!rays.length) return 0;
 
+    if (this.spatialCells) {
+      return this.countOccludedRaysSpatial(origin, rays, radius, nearPadding, stopAfter);
+    }
+
+    return this.countOccludedRaysLinear(origin, rays, radius, nearPadding, stopAfter);
+  }
+
+  buildSpatialIndex() {
+    const cells = new Map();
+    for (let index = 0; index < this.points.length; index += 3) {
+      const key = this.cellKeyFromPoint(this.points[index], this.points[index + 1], this.points[index + 2]);
+      let bucket = cells.get(key);
+      if (!bucket) {
+        bucket = [];
+        cells.set(key, bucket);
+      }
+      bucket.push(index);
+    }
+    this.spatialCells = cells;
+  }
+
+  countOccludedRaysLinear(origin, rays, radius, nearPadding, stopAfter) {
     const radiusSq = radius * radius;
     let hitCount = 0;
 
@@ -133,5 +162,76 @@ export class OcclusionProxy {
     }
 
     return hitCount;
+  }
+
+  countOccludedRaysSpatial(origin, rays, radius, nearPadding, stopAfter) {
+    const radiusSq = radius * radius;
+    let hitCount = 0;
+
+    for (const ray of rays) {
+      if (!this.isSpatialRayOccluded(origin, ray, radius, radiusSq, nearPadding)) continue;
+      hitCount += 1;
+      if (hitCount >= stopAfter) return hitCount;
+    }
+
+    return hitCount;
+  }
+
+  isSpatialRayOccluded(origin, ray, radius, radiusSq, nearPadding) {
+    const neighborRadius = Math.max(1, Math.ceil(radius * this.rayCellInverse));
+    const step = Math.max(radius, this.rayCellSize * 0.5);
+    const visited = this.spatialScratch;
+    visited.clear();
+
+    for (let along = nearPadding; along <= ray.maxAlong; along += step) {
+      const cellX = this.cellCoord(origin.x + ray.dirX * along);
+      const cellY = this.cellCoord(origin.y + ray.dirY * along);
+      const cellZ = this.cellCoord(origin.z + ray.dirZ * along);
+
+      for (let z = cellZ - neighborRadius; z <= cellZ + neighborRadius; z += 1) {
+        for (let y = cellY - neighborRadius; y <= cellY + neighborRadius; y += 1) {
+          for (let x = cellX - neighborRadius; x <= cellX + neighborRadius; x += 1) {
+            const key = this.cellKey(x, y, z);
+            if (visited.has(key)) continue;
+            visited.add(key);
+
+            const bucket = this.spatialCells.get(key);
+            if (!bucket || !this.isBucketRayOccluded(bucket, origin, ray, radiusSq, nearPadding)) continue;
+            visited.clear();
+            return true;
+          }
+        }
+      }
+    }
+
+    visited.clear();
+    return false;
+  }
+
+  isBucketRayOccluded(bucket, origin, ray, radiusSq, nearPadding) {
+    for (const index of bucket) {
+      const vx = this.points[index] - origin.x;
+      const vy = this.points[index + 1] - origin.y;
+      const vz = this.points[index + 2] - origin.z;
+      const along = vx * ray.dirX + vy * ray.dirY + vz * ray.dirZ;
+      if (along <= nearPadding || along >= ray.maxAlong) continue;
+
+      const distanceSq = vx * vx + vy * vy + vz * vz - along * along;
+      if (distanceSq < radiusSq) return true;
+    }
+
+    return false;
+  }
+
+  cellCoord(value) {
+    return Math.floor(value * this.rayCellInverse);
+  }
+
+  cellKeyFromPoint(x, y, z) {
+    return this.cellKey(this.cellCoord(x), this.cellCoord(y), this.cellCoord(z));
+  }
+
+  cellKey(x, y, z) {
+    return `${x},${y},${z}`;
   }
 }
