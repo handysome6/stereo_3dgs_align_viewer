@@ -24,7 +24,7 @@ npm run dev
 - The 3DGS splat area is the default primary viewport.
 - Drag inside the 3DGS splat area to change the first-person view angle.
 - Click the 3DGS splat area to focus it, then use `W/A/S/D` to move through the scene.
-- `W/A/S/D` movement is projected onto a Z-up ground plane. `Q/E` move down/up for quick inspection until per-scene ground planes are configured.
+- `W/A/S/D` movement is projected onto the fitted CloudCompare ground plane with normal `(0.00492588, -0.823496, 0.5673)`. `Q/E` move along that normal.
 - The reset button returns the splat camera to a registered stereo capture pose instead of an overview orbit angle.
 - Use the swap button in either viewport toolbar to exchange the primary and secondary render areas.
 - Orbit/zoom/pan remains available in the stereo PLY area.

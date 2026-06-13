@@ -10,6 +10,7 @@ import "./styles.css";
 const MANIFEST_URL = "/data/afternoon/manifest.json";
 const FRAME_LAYER = 1;
 const FPS_START_FRAME_INDEX = 0;
+const GROUND_PLANE_NORMAL = new THREE.Vector3(0.00492588, -0.823496, 0.5673).normalize();
 
 const app = document.querySelector("#app");
 app.innerHTML = `
@@ -171,8 +172,16 @@ const state = {
   stereoViewFromCamera: true,
 };
 
-function createFpsControls(camera, domElement, { onDragChange } = {}) {
-  const up = new THREE.Vector3(0, 0, 1);
+function projectOntoGround(vector, normal) {
+  const projected = vector.clone().addScaledVector(normal, -vector.dot(normal));
+  if (projected.lengthSq() > 1e-10) projected.normalize();
+  return projected;
+}
+
+function createFpsControls(camera, domElement, { groundNormal = GROUND_PLANE_NORMAL, onDragChange } = {}) {
+  const up = groundNormal.clone().normalize();
+  const groundForward = projectOntoGround(new THREE.Vector3(0, 1, 0), up);
+  const groundRight = new THREE.Vector3().copy(groundForward).cross(up).normalize();
   const direction = new THREE.Vector3();
   const flatForward = new THREE.Vector3();
   const right = new THREE.Vector3();
@@ -219,18 +228,22 @@ function createFpsControls(camera, domElement, { onDragChange } = {}) {
   function setAnglesFromDirection(sourceDirection) {
     direction.copy(sourceDirection).normalize();
     controls.pitch = Math.asin(THREE.MathUtils.clamp(direction.dot(up), -0.995, 0.995));
-    flatForward.copy(direction).addScaledVector(up, -direction.dot(up));
+    flatForward.copy(projectOntoGround(direction, up));
     if (flatForward.lengthSq() < 1e-6) {
-      flatForward.set(Math.sin(controls.yaw), Math.cos(controls.yaw), 0);
+      flatForward.copy(groundForward);
     } else {
-      flatForward.normalize();
-      controls.yaw = Math.atan2(flatForward.x, flatForward.y);
+      controls.yaw = Math.atan2(flatForward.dot(groundRight), flatForward.dot(groundForward));
     }
   }
 
   function applyLook() {
     const cp = Math.cos(controls.pitch);
-    direction.set(Math.sin(controls.yaw) * cp, Math.cos(controls.yaw) * cp, Math.sin(controls.pitch)).normalize();
+    direction
+      .copy(groundRight)
+      .multiplyScalar(Math.sin(controls.yaw) * cp)
+      .addScaledVector(groundForward, Math.cos(controls.yaw) * cp)
+      .addScaledVector(up, Math.sin(controls.pitch))
+      .normalize();
     target.copy(camera.position).add(direction);
     camera.up.copy(up);
     camera.lookAt(target);
@@ -250,9 +263,12 @@ function createFpsControls(camera, domElement, { onDragChange } = {}) {
 
   function movementVector() {
     camera.getWorldDirection(flatForward);
-    flatForward.addScaledVector(up, -flatForward.dot(up));
+    flatForward.copy(projectOntoGround(flatForward, up));
     if (flatForward.lengthSq() < 1e-6) {
-      flatForward.set(Math.sin(controls.yaw), Math.cos(controls.yaw), 0);
+      flatForward
+        .copy(groundRight)
+        .multiplyScalar(Math.sin(controls.yaw))
+        .addScaledVector(groundForward, Math.cos(controls.yaw));
     }
     flatForward.normalize();
     right.copy(flatForward).cross(up).normalize();
@@ -900,6 +916,7 @@ window.afternoonViewer = {
       splatCameraDirection: splatCamera.getWorldDirection(new THREE.Vector3()).toArray(),
       splatFpsYaw: splatFpsControls.yaw,
       splatFpsPitch: splatFpsControls.pitch,
+      groundNormal: GROUND_PLANE_NORMAL.toArray(),
       cloudCameraPosition: cloudCamera.position.toArray(),
       cloudStatus: cloudStatus.textContent,
       splatStatus: splatStatus.textContent,
