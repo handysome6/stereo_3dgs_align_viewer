@@ -2,7 +2,12 @@
 
 Spark/Three.js rewrite of the original 3DGS point-cloud viewer.
 
-The app renders the trained Gaussian splat as the maneuvering view, draws the registered stereo camera frustums as real Three.js objects, and lets a user click a camera to load the matching world-aligned stereo point cloud.
+The app has two coordinated Three.js render areas:
+
+- The 3DGS splat area renders the trained Gaussian splat and clickable registered stereo camera icons.
+- The stereo PLY area renders the currently selected camera's world-aligned point cloud.
+
+Clicking a camera icon in the splat area swaps the point cloud shown in the stereo PLY area.
 
 ## Run
 
@@ -16,10 +21,10 @@ npm run dev
 
 ## Controls
 
-- Orbit/zoom/pan in the main 3DGS view.
-- Click a camera frustum in the scene, or click a timestamp row, to load that frame's point cloud.
-- Selecting a camera jumps to that registered capture angle.
-- Toolbar buttons toggle fit view, splat visibility, selected cloud visibility, camera frustums, occlusion checks, and the decorative frustum splat layer.
+- Orbit/zoom/pan independently in the stereo PLY area and the 3DGS splat area.
+- Click a camera icon/frustum in the splat area, or click a timestamp row, to load that frame's point cloud in the stereo PLY area.
+- By default, the stereo PLY camera is moved to the selected registered capture angle after the cloud loads.
+- Toolbar buttons toggle fit view, view-from-camera mode, splat visibility, selected cloud visibility, camera frustums, occlusion checks, and the decorative frustum splat layer.
 - The right panel provides timestamp search, selected-frame metadata, thumbnail preview, and point count.
 
 Open the Vite URL, usually:
@@ -49,7 +54,8 @@ Large splat/cloud files are intentionally ignored by Git. The manifest is small 
 
 ## Design
 
-- Spark renders `AFTERNOON_ONLY.ply` in the same Three.js scene as the interactive helpers.
+- Spark renders `AFTERNOON_ONLY.ply` in the splat area only.
+- The stereo PLY area is a separate Three.js renderer/scene that displays one selected downsampled point cloud at a time.
 - Camera markers are generated from `stereo_camera_poses.json`, not from the decorative frustum splat PLY.
 - The dataset builder transforms each stereo cloud from camera coordinates to 3DGS world coordinates using `quaternion_wxyz_c2w` and `position`.
 - Point clouds are downsampled before browser use. The raw `cloud.ply` files are too large for smooth click-to-load interaction.
