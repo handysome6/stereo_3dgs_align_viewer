@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -145,6 +146,74 @@ def sample_indices(count: int, max_points: int) -> np.ndarray:
     return np.linspace(0, count - 1, max_points, dtype=np.int64)
 
 
+def stable_seed(text: str) -> int:
+    digest = hashlib.blake2s(text.encode("utf-8"), digest_size=8).digest()
+    return int.from_bytes(digest, byteorder="little", signed=False)
+
+
+def sample_random_indices(indices: np.ndarray, max_points: int, seed: int) -> np.ndarray:
+    if len(indices) <= max_points:
+        return indices
+    rng = np.random.default_rng(seed)
+    sampled = rng.choice(indices, size=max_points, replace=False)
+    sampled.sort()
+    return sampled
+
+
+def sample_stratified_image_indices(
+    indices: np.ndarray,
+    header: PlyHeader,
+    intrinsics: dict[str, float],
+    max_points: int,
+    seed: int,
+) -> np.ndarray:
+    width = int(intrinsics["width"])
+    height = int(intrinsics["height"])
+    if header.vertex_count != width * height or len(indices) <= max_points:
+        return sample_random_indices(indices, max_points, seed)
+
+    tile_size = max(1, int(np.floor(np.sqrt(header.vertex_count / max_points))))
+    tile_columns = int(np.ceil(width / tile_size))
+    x = indices % width
+    y = indices // width
+    tile_ids = (y // tile_size) * tile_columns + (x // tile_size)
+
+    rng = np.random.default_rng(seed)
+    priorities = rng.random(len(indices), dtype=np.float32)
+    tile_count = int(tile_ids.max()) + 1
+    best_priorities = np.full(tile_count, np.inf, dtype=np.float32)
+    np.minimum.at(best_priorities, tile_ids, priorities)
+    sampled = indices[priorities == best_priorities[tile_ids]]
+
+    if len(sampled) > max_points:
+        sampled = rng.choice(sampled, size=max_points, replace=False)
+    elif len(sampled) < max_points:
+        remaining = indices[~np.isin(indices, sampled, assume_unique=False)]
+        fill_count = min(max_points - len(sampled), len(remaining))
+        if fill_count:
+            sampled = np.concatenate([sampled, rng.choice(remaining, size=fill_count, replace=False)])
+
+    sampled.sort()
+    return sampled
+
+
+def sample_cloud_indices(
+    indices: np.ndarray,
+    header: PlyHeader,
+    intrinsics: dict[str, float],
+    max_points: int,
+    seed: int,
+    mode: str,
+) -> np.ndarray:
+    if mode == "linear":
+        return indices[sample_indices(len(indices), max_points)]
+    if mode == "random":
+        return sample_random_indices(indices, max_points, seed)
+    if mode == "stratified":
+        return sample_stratified_image_indices(indices, header, intrinsics, max_points, seed)
+    raise ValueError(f"Unsupported cloud sampling mode: {mode}")
+
+
 def write_xyzrgb_binary_ply(path: Path, points: np.ndarray, colors: np.ndarray | None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if colors is None:
@@ -220,15 +289,17 @@ def build_cloud_asset(
     output_path: Path,
     position: list[float],
     quaternion_wxyz_c2w: list[float],
+    intrinsics: dict[str, float],
     max_points: int,
     min_depth: float,
+    sampling_mode: str,
 ) -> dict[str, object]:
     data, header = read_ply_memmap(source_path)
     z = np.asarray(data["z"])
     valid = np.flatnonzero(np.isfinite(z) & (z > min_depth))
     if len(valid) == 0:
         raise ValueError(f"No valid depth points in {source_path}")
-    sampled = valid[sample_indices(len(valid), max_points)]
+    sampled = sample_cloud_indices(valid, header, intrinsics, max_points, stable_seed(source_path.parent.name), sampling_mode)
     points_camera = np.column_stack([data["x"][sampled], data["y"][sampled], data["z"][sampled]]).astype(np.float64)
     points_world = camera_to_world(points_camera, position, quaternion_wxyz_c2w)
 
@@ -242,6 +313,7 @@ def build_cloud_asset(
         "count": int(len(points_camera)),
         "bounds": point_bounds(points_camera),
         "worldBounds": point_bounds(points_world),
+        "samplingMode": sampling_mode,
     }
 
 
@@ -309,8 +381,10 @@ def build_manifest(args: argparse.Namespace) -> dict[str, object]:
             cloud_target,
             position,
             quaternion,
+            intrinsics,
             args.max_cloud_points,
             args.min_depth,
+            args.cloud_sampling_mode,
         )
 
         thumb_source = frame_dir / "rect_left.jpg"
@@ -333,6 +407,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, object]:
             "cloudCoordinateFrame": "stereo-camera-opencv",
             "thumbnailUrl": thumb_url,
             "pointCount": cloud_info["count"],
+            "cloudSamplingMode": cloud_info["samplingMode"],
             "cloudBounds": cloud_info["bounds"],
             "worldCloudBounds": cloud_info["worldBounds"],
             "frustum": [
@@ -369,6 +444,10 @@ def build_manifest(args: argparse.Namespace) -> dict[str, object]:
             "occlusionProxy": occlusion,
         },
         "intrinsics": intrinsics,
+        "cloudSampling": {
+            "mode": args.cloud_sampling_mode,
+            "maxPointsPerCloud": args.max_cloud_points,
+        },
         "frames": frames,
     }
     manifest_path = output_dir / "manifest.json"
@@ -382,7 +461,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--afternoon-dir", type=Path, default=Path("/Users/andyliu/Downloads/afternoon_data"))
     parser.add_argument("--stereo-dir", type=Path, default=Path("/Users/andyliu/Downloads/20260612_littlehouse_stereo"))
     parser.add_argument("--output-dir", type=Path, default=Path("public/data/afternoon"))
-    parser.add_argument("--max-cloud-points", type=int, default=280_000)
+    parser.add_argument("--max-cloud-points", type=int, default=560_000)
+    parser.add_argument("--cloud-sampling-mode", choices=("linear", "random", "stratified"), default="stratified")
     parser.add_argument("--occlusion-points", type=int, default=140_000)
     parser.add_argument("--min-depth", type=float, default=0.05)
     parser.add_argument("--frustum-depth", type=float, default=0.45)

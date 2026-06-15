@@ -427,7 +427,28 @@ function createRenderer(canvas, clearColor) {
   return renderer;
 }
 
+function createPointSpriteTexture() {
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  const gradient = context.createRadialGradient(size * 0.5, size * 0.5, 0, size * 0.5, size * 0.5, size * 0.5);
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.72, "rgba(255,255,255,1)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  return texture;
+}
+
 function createMaterials() {
+  const pointSprite = createPointSpriteTexture();
   const createLineMaterial = (color, opacity = 1) =>
     new LineMaterial({
       color,
@@ -446,8 +467,24 @@ function createMaterials() {
     markerHover: new THREE.MeshBasicMaterial({ color: 0xd8f2e7, transparent: true, opacity: 1, depthTest: true }),
     markerActive: new THREE.MeshBasicMaterial({ color: 0xe5b75d, transparent: true, opacity: 1, depthTest: true }),
     pick: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, depthTest: false }),
-    pointCloud: new THREE.PointsMaterial({ size: 0.018, vertexColors: true, sizeAttenuation: true, depthTest: true }),
-    pointCloudPlain: new THREE.PointsMaterial({ size: 0.018, color: 0xe5d18b, sizeAttenuation: true, depthTest: true }),
+    pointCloud: new THREE.PointsMaterial({
+      size: 0.026,
+      vertexColors: true,
+      sizeAttenuation: true,
+      map: pointSprite,
+      alphaTest: 0.18,
+      depthTest: true,
+      depthWrite: true,
+    }),
+    pointCloudPlain: new THREE.PointsMaterial({
+      size: 0.026,
+      color: 0xe5d18b,
+      sizeAttenuation: true,
+      map: pointSprite,
+      alphaTest: 0.18,
+      depthTest: true,
+      depthWrite: true,
+    }),
   };
 }
 
