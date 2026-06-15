@@ -197,13 +197,88 @@ def sample_stratified_image_indices(
     return sampled
 
 
+def voxel_representative_indices(data: np.memmap, indices: np.ndarray, voxel_size: float, seed: int) -> np.ndarray:
+    if voxel_size <= 0:
+        raise ValueError("--cloud-voxel-size must be greater than 0")
+
+    x = np.asarray(data["x"][indices], dtype=np.float32)
+    y = np.asarray(data["y"][indices], dtype=np.float32)
+    z = np.asarray(data["z"][indices], dtype=np.float32)
+    min_x = float(x.min())
+    min_y = float(y.min())
+    min_z = float(z.min())
+
+    qx = np.floor((x - min_x) / voxel_size).astype(np.int32)
+    qy = np.floor((y - min_y) / voxel_size).astype(np.int32)
+    qz = np.floor((z - min_z) / voxel_size).astype(np.int32)
+    dim_y = int(qy.max()) + 1
+    dim_z = int(qz.max()) + 1
+    voxel_keys = (qx.astype(np.int64) * dim_y + qy.astype(np.int64)) * dim_z + qz.astype(np.int64)
+
+    unique_keys, inverse = np.unique(voxel_keys, return_inverse=True)
+    rng = np.random.default_rng(seed)
+    priorities = rng.random(len(indices), dtype=np.float32)
+    best_priorities = np.full(len(unique_keys), np.inf, dtype=np.float32)
+    np.minimum.at(best_priorities, inverse, priorities)
+    sampled = indices[priorities == best_priorities[inverse]]
+    sampled.sort()
+    return sampled
+
+
+def sample_voxel_indices(
+    data: np.memmap,
+    indices: np.ndarray,
+    header: PlyHeader,
+    intrinsics: dict[str, float],
+    max_points: int,
+    voxel_size: float,
+    seed: int,
+) -> np.ndarray:
+    sampled = voxel_representative_indices(data, indices, voxel_size, seed)
+    if len(sampled) <= max_points:
+        return sampled
+    return sample_stratified_image_indices(sampled, header, intrinsics, max_points, seed + 1)
+
+
+def sample_hybrid_indices(
+    data: np.memmap,
+    indices: np.ndarray,
+    header: PlyHeader,
+    intrinsics: dict[str, float],
+    max_points: int,
+    voxel_size: float,
+    seed: int,
+) -> np.ndarray:
+    voxel_sampled = voxel_representative_indices(data, indices, voxel_size, seed)
+    if len(voxel_sampled) >= max_points:
+        return sample_stratified_image_indices(voxel_sampled, header, intrinsics, max_points, seed + 1)
+
+    stratified_sampled = sample_stratified_image_indices(indices, header, intrinsics, max_points, seed + 2)
+    fill = stratified_sampled[~np.isin(stratified_sampled, voxel_sampled, assume_unique=False)]
+    needed = max_points - len(voxel_sampled)
+    if len(fill) > needed:
+        rng = np.random.default_rng(seed + 3)
+        fill = rng.choice(fill, size=needed, replace=False)
+    sampled = np.concatenate([voxel_sampled, fill])
+
+    if len(sampled) < max_points:
+        remaining = np.setdiff1d(indices, sampled, assume_unique=False)
+        extra = sample_random_indices(remaining, max_points - len(sampled), seed + 4)
+        sampled = np.concatenate([sampled, extra])
+
+    sampled.sort()
+    return sampled
+
+
 def sample_cloud_indices(
+    data: np.memmap,
     indices: np.ndarray,
     header: PlyHeader,
     intrinsics: dict[str, float],
     max_points: int,
     seed: int,
     mode: str,
+    voxel_size: float,
 ) -> np.ndarray:
     if mode == "linear":
         return indices[sample_indices(len(indices), max_points)]
@@ -211,6 +286,10 @@ def sample_cloud_indices(
         return sample_random_indices(indices, max_points, seed)
     if mode == "stratified":
         return sample_stratified_image_indices(indices, header, intrinsics, max_points, seed)
+    if mode == "voxel":
+        return sample_voxel_indices(data, indices, header, intrinsics, max_points, voxel_size, seed)
+    if mode == "hybrid":
+        return sample_hybrid_indices(data, indices, header, intrinsics, max_points, voxel_size, seed)
     raise ValueError(f"Unsupported cloud sampling mode: {mode}")
 
 
@@ -293,13 +372,23 @@ def build_cloud_asset(
     max_points: int,
     min_depth: float,
     sampling_mode: str,
+    voxel_size: float,
 ) -> dict[str, object]:
     data, header = read_ply_memmap(source_path)
     z = np.asarray(data["z"])
     valid = np.flatnonzero(np.isfinite(z) & (z > min_depth))
     if len(valid) == 0:
         raise ValueError(f"No valid depth points in {source_path}")
-    sampled = sample_cloud_indices(valid, header, intrinsics, max_points, stable_seed(source_path.parent.name), sampling_mode)
+    sampled = sample_cloud_indices(
+        data,
+        valid,
+        header,
+        intrinsics,
+        max_points,
+        stable_seed(source_path.parent.name),
+        sampling_mode,
+        voxel_size,
+    )
     points_camera = np.column_stack([data["x"][sampled], data["y"][sampled], data["z"][sampled]]).astype(np.float64)
     points_world = camera_to_world(points_camera, position, quaternion_wxyz_c2w)
 
@@ -314,6 +403,7 @@ def build_cloud_asset(
         "bounds": point_bounds(points_camera),
         "worldBounds": point_bounds(points_world),
         "samplingMode": sampling_mode,
+        "voxelSize": voxel_size if sampling_mode in ("voxel", "hybrid") else None,
     }
 
 
@@ -385,6 +475,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, object]:
             args.max_cloud_points,
             args.min_depth,
             args.cloud_sampling_mode,
+            args.cloud_voxel_size,
         )
 
         thumb_source = frame_dir / "rect_left.jpg"
@@ -408,6 +499,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, object]:
             "thumbnailUrl": thumb_url,
             "pointCount": cloud_info["count"],
             "cloudSamplingMode": cloud_info["samplingMode"],
+            "cloudVoxelSize": cloud_info["voxelSize"],
             "cloudBounds": cloud_info["bounds"],
             "worldCloudBounds": cloud_info["worldBounds"],
             "frustum": [
@@ -447,6 +539,7 @@ def build_manifest(args: argparse.Namespace) -> dict[str, object]:
         "cloudSampling": {
             "mode": args.cloud_sampling_mode,
             "maxPointsPerCloud": args.max_cloud_points,
+            "voxelSize": args.cloud_voxel_size if args.cloud_sampling_mode in ("voxel", "hybrid") else None,
         },
         "frames": frames,
     }
@@ -461,8 +554,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--afternoon-dir", type=Path, default=Path("/Users/andyliu/Downloads/afternoon_data"))
     parser.add_argument("--stereo-dir", type=Path, default=Path("/Users/andyliu/Downloads/20260612_littlehouse_stereo"))
     parser.add_argument("--output-dir", type=Path, default=Path("public/data/afternoon"))
-    parser.add_argument("--max-cloud-points", type=int, default=560_000)
-    parser.add_argument("--cloud-sampling-mode", choices=("linear", "random", "stratified"), default="stratified")
+    parser.add_argument("--max-cloud-points", type=int, default=1_000_000)
+    parser.add_argument(
+        "--cloud-sampling-mode",
+        choices=("linear", "random", "stratified", "voxel", "hybrid"),
+        default="hybrid",
+    )
+    parser.add_argument(
+        "--cloud-voxel-size",
+        type=float,
+        default=0.006,
+        help="Voxel size in stereo cloud units for voxel/hybrid sampling. The afternoon clouds are meter-scale.",
+    )
     parser.add_argument("--occlusion-points", type=int, default=140_000)
     parser.add_argument("--min-depth", type=float, default=0.05)
     parser.add_argument("--frustum-depth", type=float, default=0.45)

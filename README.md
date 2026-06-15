@@ -32,6 +32,15 @@ npm run build:data -- \
   --stereo-dir /path/to/20260612_littlehouse_stereo
 ```
 
+By default this builds static stereo PLY files with hybrid sampling: a small `0.006` voxel-grid pass first, then image-tile stratified fill up to `1,000,000` points per cloud. You can tune or compare modes without changing the viewer:
+
+```bash
+npm run build:data -- \
+  --cloud-sampling-mode hybrid \
+  --cloud-voxel-size 0.006 \
+  --max-cloud-points 1000000
+```
+
 Start the dev server:
 
 ```bash

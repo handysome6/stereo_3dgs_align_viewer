@@ -36,6 +36,11 @@ const CAMERA_OCCLUSION_IDLE_INTERVAL_MS = 150;
 const CAMERA_OCCLUSION_MOVING_INTERVAL_MS = 260;
 const CAMERA_OCCLUSION_IDLE_BATCH_SIZE = 16;
 const CAMERA_OCCLUSION_MOVING_BATCH_SIZE = 8;
+const CLOUD_POINT_WORLD_SIZE = 0.026;
+const CLOUD_POINT_MIN_CSS_PIXELS = 1.5;
+const CLOUD_POINT_MAX_CSS_PIXELS = 6.0;
+const CLOUD_POINT_ALPHA_TEST = 0.16;
+const CLOUD_POINT_FAR_ALPHA = 0.82;
 
 const app = document.querySelector("#app");
 app.innerHTML = `
@@ -170,6 +175,7 @@ const splatOcclusionRaycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const rayDirection = new THREE.Vector3();
 const lineResolution = new THREE.Vector2();
+const cloudPointBufferSize = new THREE.Vector2();
 const markerShellDirection = new THREE.Vector3();
 const markerShellRight = new THREE.Vector3();
 const markerShellUp = new THREE.Vector3();
@@ -447,6 +453,63 @@ function createPointSpriteTexture() {
   return texture;
 }
 
+function createAdaptivePointCloudMaterial({ pointSprite, color = 0xe5d18b, vertexColors = false }) {
+  const colorUniform = new THREE.Color(color);
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uPointSprite: { value: pointSprite },
+      uColor: { value: colorUniform },
+      uPointWorldSize: { value: CLOUD_POINT_WORLD_SIZE },
+      uPointScale: { value: 1 },
+      uMinPointSize: { value: CLOUD_POINT_MIN_CSS_PIXELS },
+      uMaxPointSize: { value: CLOUD_POINT_MAX_CSS_PIXELS },
+      uAlphaTest: { value: CLOUD_POINT_ALPHA_TEST },
+      uFarAlpha: { value: CLOUD_POINT_FAR_ALPHA },
+    },
+    vertexShader: `
+      uniform float uPointWorldSize;
+      uniform float uPointScale;
+      uniform float uMinPointSize;
+      uniform float uMaxPointSize;
+      uniform float uFarAlpha;
+      uniform vec3 uColor;
+      varying vec3 vColor;
+      varying float vAlpha;
+
+      void main() {
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+
+        float projectedSize = uPointWorldSize * uPointScale / max(0.001, -mvPosition.z);
+        gl_PointSize = clamp(projectedSize, uMinPointSize, uMaxPointSize);
+
+        float farBoost = clamp((uMinPointSize - projectedSize) / max(0.001, uMinPointSize), 0.0, 1.0);
+        vAlpha = mix(1.0, uFarAlpha, farBoost);
+        vColor = ${vertexColors ? "color" : "uColor"};
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D uPointSprite;
+      uniform float uAlphaTest;
+      varying vec3 vColor;
+      varying float vAlpha;
+
+      void main() {
+        vec4 sprite = texture2D(uPointSprite, gl_PointCoord);
+        float alpha = sprite.a * vAlpha;
+        if (alpha < uAlphaTest) discard;
+        gl_FragColor = vec4(vColor, alpha);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+    vertexColors,
+    transparent: true,
+    depthTest: true,
+    depthWrite: true,
+  });
+}
+
 function createMaterials() {
   const pointSprite = createPointSpriteTexture();
   const createLineMaterial = (color, opacity = 1) =>
@@ -467,24 +530,8 @@ function createMaterials() {
     markerHover: new THREE.MeshBasicMaterial({ color: 0xd8f2e7, transparent: true, opacity: 1, depthTest: true }),
     markerActive: new THREE.MeshBasicMaterial({ color: 0xe5b75d, transparent: true, opacity: 1, depthTest: true }),
     pick: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, depthTest: false }),
-    pointCloud: new THREE.PointsMaterial({
-      size: 0.026,
-      vertexColors: true,
-      sizeAttenuation: true,
-      map: pointSprite,
-      alphaTest: 0.18,
-      depthTest: true,
-      depthWrite: true,
-    }),
-    pointCloudPlain: new THREE.PointsMaterial({
-      size: 0.026,
-      color: 0xe5d18b,
-      sizeAttenuation: true,
-      map: pointSprite,
-      alphaTest: 0.18,
-      depthTest: true,
-      depthWrite: true,
-    }),
+    pointCloud: createAdaptivePointCloudMaterial({ pointSprite, vertexColors: true }),
+    pointCloudPlain: createAdaptivePointCloudMaterial({ pointSprite, color: 0xe5d18b }),
   };
 }
 
@@ -513,6 +560,18 @@ function resizeRenderers() {
   resizeRenderer(cloudRenderer, cloudCamera, cloudCanvas);
   resizeRenderer(splatRenderer, splatCamera, splatCanvas);
   updateLineMaterialResolution();
+  updateAdaptivePointMaterialUniforms();
+}
+
+function updateAdaptivePointMaterialUniforms() {
+  cloudRenderer.getDrawingBufferSize(cloudPointBufferSize);
+  const pointScale = Math.max(1, cloudPointBufferSize.y * 0.5);
+  const pixelRatio = cloudRenderer.getPixelRatio();
+  for (const material of [materials.pointCloud, materials.pointCloudPlain]) {
+    material.uniforms.uPointScale.value = pointScale;
+    material.uniforms.uMinPointSize.value = CLOUD_POINT_MIN_CSS_PIXELS * pixelRatio;
+    material.uniforms.uMaxPointSize.value = CLOUD_POINT_MAX_CSS_PIXELS * pixelRatio;
+  }
 }
 
 function createFrameGeometry(frame) {
@@ -1065,6 +1124,7 @@ function animate(now) {
   lastAnimationTime = now;
   splatFpsControls.update(deltaSeconds);
   cloudControls.update();
+  updateAdaptivePointMaterialUniforms();
   updateOcclusion(now);
   splatRenderer.render(splatScene, splatCamera);
   cloudRenderer.render(cloudScene, cloudCamera);
@@ -1195,6 +1255,12 @@ window.afternoonViewer = {
         x: "+X image right",
         y: "+Y image down",
         z: "+Z sensor to scene",
+      },
+      cloudPointSizing: {
+        worldSize: CLOUD_POINT_WORLD_SIZE,
+        minCssPixels: CLOUD_POINT_MIN_CSS_PIXELS,
+        maxCssPixels: CLOUD_POINT_MAX_CSS_PIXELS,
+        farAlpha: CLOUD_POINT_FAR_ALPHA,
       },
       cloudStatus: cloudStatus.textContent,
       splatStatus: splatStatus.textContent,
